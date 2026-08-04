@@ -99,9 +99,11 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 1. 전체 콘텐츠 컨테이너를 최대 1180px + 반응형 좌우 여백(16/24/32px)으로 바꾼다
    (`app/page.tsx`).
 2. 헤더를 모바일 세로 / 데스크톱 좌우 배치로 바꾸고 짧은 설명 문구를 데스크톱에만
-   넣는다 (`components/Header.tsx`).
+   넣는다 (당시 파일은 `trash-can/components/Header.tsx`로 옮겼고, 지금은
+   `components/CommandCenter.tsx`가 그 역할을 이어받았다).
 3. 기사 목록을 `grid-cols-1 md:grid-cols-2`로 바꾼다. 헤더·산업 필터는 전체 너비를
-   유지한다 (`components/IndustryFilteredArticles.tsx`).
+   유지한다 (당시 파일은 `trash-can/components/IndustryFilteredArticles.tsx`로 옮겼고,
+   지금은 `components/Dashboard.tsx`가 그 역할을 흡수했다).
 4. `lib/industries.ts`에 `INDUSTRY_IMAGES` 경로 매핑과 `getArticleImage()`를 만든다.
    새 DB 컬럼이나 API 라우트는 만들지 않는다.
 5. `ArticleCard`에 16:9 이미지 영역(`next/image`, `fill`, `object-cover`)과 이미지 위
@@ -185,3 +187,42 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
   않는다.
 - **22번(배포)이 마지막인 이유**: 배포는 앞의 모든 것이 로컬에서 동작을 확인한 뒤에
   하는 것이 안전하다.
+
+## 대시보드 확장 (2026-08-05, 사용자 요청)
+
+기존 목록 화면을 유지한 채 위·옆에 도구를 더한다. 수집·점수·요약·정렬은 손대지 않는다.
+
+1. 파생 계층을 먼저 만든다: `lib/publishers.ts`(언론사명), `lib/classification.ts`
+   (이슈·근거·긴급도·기관), `lib/relevance.ts`의 `explainRelevance()`(점수 근거),
+   `lib/enrich.ts`(1회 계산), `lib/clustering.ts`(이슈 군집).
+2. 개인 상태는 `lib/personalState.ts`에 localStorage로만 둔다. 로그인·서버 저장 없음.
+3. 검색·필터·정렬·지표·인사이트 계산은 `lib/dashboard.ts` 순수 함수로 모으고
+   화면에서 `useMemo`로 감싼다.
+4. 화면은 `components/Dashboard.tsx`가 조율하고, CommandCenter·MetricCards·
+   InsightStrip·FilterToolbar·FilterDrawer·InsightPanel·ReportPanel로 나눈다.
+5. 확장 요약(`expanded_summary`)은 nullable 컬럼으로 추가하고, 수집 시 요약 호출
+   **한 번**에서 함께 받는다. 기존 기사는 null로 두고 화면에서 fallback한다.
+6. 새로고침 버튼을 `/api/collect`에 연결하고, 그동안 서버에서 강제되지 않던
+   5분 쿨다운을 `lib/pipeline.ts`에 넣는다.
+
+### 데이터·마이그레이션
+
+- 마이그레이션: `supabase/migrations/20260805090000_add_expanded_summary_to_articles.sql`
+  (nullable `text[]` 추가, 기본값 없음, rollback은 drop column).
+- 이슈 유형·근거 유형·긴급도·기관은 **컬럼을 만들지 않는다.** 조회 결과에서 계산한다.
+- 과거 기사에 확장 요약을 소급 생성하는 배치는 만들지 않는다 (근거 발췌문이 없다).
+
+### 자기검증 도입 단계
+
+1. `npm run typecheck` / `lint` / `build` 명령 정리 — 완료.
+2. `npm run audit:quality` (로컬 실행, Markdown 보고서 + 기준선) — 완료.
+3. GitHub Actions 수동 실행(`workflow_dispatch`) + artifact — 파일 추가 완료,
+   **저장소에 push한 뒤 GitHub에서 한 번 실행해 확인해야 한다.**
+4. 야간 schedule(03:00 KST) — 파일에는 등록, 실제 동작은 push 후 확인 필요.
+5. Playwright 시각 회귀 — **도입하지 않았다.** 새 무거운 의존성이 필요해 보류.
+6. 자동 수정·자동 PR — **도입하지 않았다.** 감사는 read-only다.
+
+### 미구현으로 남은 것
+
+- Vercel Cron(`vercel.json`) 미등록 → 자동 수집이 예약돼 있지 않다.
+- 기사 데이터에 issueType·evidenceType 등을 저장하는 컬럼(현재는 조회 시 계산).

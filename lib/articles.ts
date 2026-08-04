@@ -10,11 +10,20 @@ type ArticleRow = {
   press: string;
   published_at: string;
   summary: string[] | null;
+  /** 마이그레이션 이전에 저장된 행에는 없으므로 undefined도 올 수 있다 */
+  expanded_summary?: string[] | null;
   collected_at: string;
   group_id: string | null;
   industries: unknown;
   relevance_score: unknown;
 };
+
+/** 확장 요약은 값이 없거나 빈 배열이면 "없음"으로 본다 (PRD 5-2-1) */
+function toExpandedSummary(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const lines = value.map((line) => String(line).trim()).filter((line) => line.length > 0);
+  return lines.length > 0 ? lines : null;
+}
 
 /** 값이 없거나 올바른 배열이 아니면 빈 배열로 처리한다 (PRD 5-3) */
 function toIndustries(value: unknown): Industry[] {
@@ -29,6 +38,7 @@ function toArticle(row: ArticleRow): Article {
     press: row.press,
     publishedAt: row.published_at,
     summary: row.summary,
+    expandedSummary: toExpandedSummary(row.expanded_summary),
     collectedAt: row.collected_at,
     groupId: row.group_id,
     industries: toIndustries(row.industries),
@@ -115,6 +125,7 @@ export type ArticleInsert = {
   press: string;
   published_at: string;
   summary: string[] | null;
+  expanded_summary: string[] | null;
   group_id: string | null;
   industries: Industry[];
   relevance_score: number;
@@ -141,6 +152,48 @@ export async function saveArticles(rows: ArticleInsert[]): Promise<number> {
   }
 
   return representatives.length;
+}
+
+/**
+ * 대시보드 상단 지표용 집계 (DESIGN.md 3-2).
+ *
+ * 화면에 내려온 30건만으로는 알 수 없는 "전체 규모"만 서버에서 센다. head 조회로
+ * count만 받아 오므로 기사 본문을 다시 내려받지 않는다. 화면에서 계산할 수 있는
+ * 지표(점수 분포·이슈 유형 등)는 여기서 세지 않는다.
+ */
+export type ArticleStats = {
+  /** 저장된 대표 기사 총 건수 */
+  totalArticles: number;
+  /** 오늘(KST) 수집된 대표 기사 수 */
+  collectedToday: number;
+  /** 최근 7일 안에 발행된 대표 기사 수 (목록 상한과 무관한 실제 모수) */
+  recentArticles: number;
+};
+
+export async function getArticleStats(days = 7): Promise<ArticleStats> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceDate = since.toISOString().slice(0, 10);
+
+  // KST 자정을 UTC 시각으로 바꿔 오늘 수집분을 센다
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const kstMidnightUtc = new Date(
+    Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate()) - 9 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const base = () => supabase.from('articles').select('url', { count: 'exact', head: true }).is('group_id', null);
+
+  const [total, today, recent] = await Promise.all([
+    base(),
+    base().gte('collected_at', kstMidnightUtc),
+    base().gte('published_at', sinceDate).gte('relevance_score', MIN_RELEVANCE_SCORE),
+  ]);
+
+  return {
+    totalArticles: total.count ?? 0,
+    collectedToday: today.count ?? 0,
+    recentArticles: recent.count ?? 0,
+  };
 }
 
 export async function getCollectionState(): Promise<CollectionState> {

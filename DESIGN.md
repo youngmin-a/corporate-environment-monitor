@@ -338,11 +338,27 @@ my-app/
     supabase.ts               ← Supabase 연결
     collectionState.ts        ← collection_state 읽기/쓰기 (쿨다운·일일상한·초회여부)
     industries.ts              ← 산업 타입·선택지·키워드·classifyIndustries() (2-4)
+    classification.ts          ← 이슈·근거·긴급도·기관 분류 (AI 없이 키워드 판정)
+    publishers.ts               ← 도메인 → 언론사명 매핑
+    enrich.ts                    ← 조회 결과에 파생 정보 붙이기 (1회 계산)
+    clustering.ts                 ← 이슈 군집화 (보수적 판정)
+    dashboard.ts                   ← 검색·필터·정렬·지표·인사이트 계산
+    personalState.ts               ← 읽음·검토·저장·메모·보고서 (localStorage)
+    report.ts                       ← 브리핑 Markdown·CSV 생성 (AI 없음)
   components/
-    ArticleCard.tsx
-    IndustryFilteredArticles.tsx  ← 산업 드롭다운 + 필터링된 목록 (클라이언트, 2-4)
-  vercel.json               ← Cron 스케줄 설정
+    Dashboard.tsx             ← 대시보드 오케스트레이터 (클라이언트)
+    CommandCenter.tsx          ← 상단 상태 패널
+    MetricCards.tsx / InsightStrip.tsx / FilterToolbar.tsx / FilterDrawer.tsx
+    InsightPanel.tsx / ReportPanel.tsx
+    ArticleCard.tsx / ArticleDetailDialog.tsx / IntroOverlay.tsx
+  scripts/
+    quality-audit.ts          ← read-only 품질 자기검증
+  .github/workflows/
+    nightly-quality-audit.yml ← 야간 감사 (03:00 KST)
 ```
+
+> Cron 스케줄용 `vercel.json`은 **아직 저장소에 없다.** 현재 자동 수집은 예약돼
+> 있지 않고 화면의 새로고침 버튼으로만 돈다 (PLAN 미구현 항목 참고).
 
 ---
 
@@ -353,3 +369,55 @@ bkit의 `/pdca design`은 원래 3가지 아키텍처 안(최소 변경 / 클린
 저장한다. 이번엔 요청하신 형식(화면 구성·데이터 흐름·기술 선택 3가지)을 그대로 따라
 가벼운 문서로 프로젝트 루트에 만들었다. 정식 템플릿(아키텍처 옵션 비교 등)이 필요하시면
 말씀해주세요.
+
+---
+
+## 5. 대시보드 화면 구조 (2026-08-05 확장)
+
+### 5-1. 3단 레이아웃
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ Command Center  상태 라인 · 제목 · 신선도 · 수집 통계 · 새로고침 │
+├──────────────────────────────────────────────────────────┤
+│ 핵심 지표 카드 8개 (클릭 = 필터 적용, 숫자 count-up)            │
+├──────────────────────────────────────────────────────────┤
+│ 이슈 분석 스트립 (가로 스크롤, 자동 회전 없음)                   │
+├──────────────────────────────────────────────────────────┤
+│ 검색 · 산업 select · 정렬 · 상세 필터 · 보기 방식 · 적용 chip     │
+├───────────────────────────────────┬──────────────────────┤
+│ 기사 피드 (카드 / 압축 / 이슈 군집)      │ 인사이트 패널 (sticky)  │
+│ 1열(모바일) · 2열(768px~)             │ 산업·추세·언급 주체     │
+└───────────────────────────────────┴──────────────────────┘
+                    선택 시 하단 고정 액션 바
+```
+
+- 1280px 미만에서는 인사이트 패널이 피드 아래로 내려온다(숨기지 않는다).
+- 상세 필터·브리핑은 640px 이상에서 오른쪽 drawer, 그 아래에서는 bottom sheet다.
+- 기사 상세는 데스크톱 중앙 modal(최대 900px·90dvh), 모바일 full-height sheet(94dvh).
+
+### 5-2. 색 사용 규칙
+
+기존 파랑 `#1A73E8`·인디고 `#4F46E5`가 기본, 시안 `#22D3EE`·바이올렛 `#7C3AED`가
+보조다. 지표 카드마다 다른 색을 주지 않고 **역할별로만** 쓴다.
+
+| 색 | 쓰는 곳 |
+|---|---|
+| 파랑·인디고 | 지표·선택 상태·기본 강조 |
+| 시안 | 진행·흐름(상태 라인, ripple, 컬러 라인) |
+| 바이올렛 | 이슈 유형 배지, 인사이트 막대 끝 |
+| 그린 | 기업 직접 발언, 보고서 반영 상태 |
+| 주황·코랄 | 지연·오류 상태 포인트 (면적을 넓히지 않는다) |
+
+### 5-3. 상세 요약 레이아웃
+
+`상세 요약` 제목 아래에 문장을 한 줄씩 놓고 왼쪽에 `01`~`08` 번호를 붙인다. 번호는
+중요도 순위가 아니다. 문장마다 45ms씩 늦게 올라오고(전체 350ms 이내), 각 문장은
+opacity 0→1 · translateY 6px→0으로 260ms 동안 나타난다. 타이핑·글자 분해 효과는
+쓰지 않는다. reduced-motion에서는 stagger 없이 한 번에 fade한다.
+
+### 5-4. 자동 품질 보고서
+
+`reports/nightly/YYYY-MM-DD.md`에 실행 정보·검사 결과 표·발견된 문제(심각도순)·
+전일 대비 변화를 남기고, `reports/quality-baseline.json`에 기준선을 저장한다.
+이 정보는 **일반 사용자 화면에 노출하지 않는다** — CI artifact와 저장소 파일로만 본다.

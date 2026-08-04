@@ -318,6 +318,57 @@ export function evaluateRelevance(
   return { score, accepted: true };
 }
 
+/**
+ * 점수 근거 한 줄. 화면의 "왜 이 점수인지" popover에 그대로 쓴다.
+ *
+ * 점수 산식(scoreFromSignals)은 건드리지 않고, 이미 판정한 신호를 문장으로만
+ * 옮긴다 — 근거를 만들려고 AI를 부르거나 새 규칙을 더하지 않기 위해서다.
+ * 신호가 없으면 빈 배열이며, 그때는 화면에서도 근거를 지어내지 않는다.
+ */
+export type ScoreReason = {
+  label: string;
+  /** 가점이면 true, 감점이면 false */
+  positive: boolean;
+  /** 이 신호가 점수에 더한 값 */
+  points: number;
+};
+
+/**
+ * 저장된 기사에는 발췌문이 없으므로 요약을 description 자리에 넣어 부른다
+ * (calculateRelevanceScore와 같은 사용법이다).
+ */
+export function explainRelevance(
+  title: string,
+  description: string,
+  industries: Industry[],
+): ScoreReason[] {
+  const signals = detectSignals(title, description, industries);
+  const hasConcreteImpact = signals.burden || signals.demand;
+  const reasons: ScoreReason[] = [];
+
+  const add = (label: string, positive: boolean, points: number) =>
+    reasons.push({ label, positive, points });
+
+  if (signals.titleRegulation) add('제목에 규제·인허가 신호', true, SCORE_TITLE_REGULATION);
+  else if (signals.descriptionRegulation) add('본문에 규제·인허가 신호', true, SCORE_DESCRIPTION_REGULATION);
+  if (signals.burden) add('기업 부담·사업 차질이 구체적으로 언급됨', true, SCORE_BURDEN);
+  if (signals.demand) add('기업·업계의 개선 요구가 있음', true, SCORE_DEMAND);
+  if (signals.actor) add('기업·업계 주체가 분명함', true, SCORE_ACTOR);
+  if (signals.industry) add(`산업 분류됨 (${industries.join(', ')})`, true, SCORE_INDUSTRY);
+
+  if (signals.politics) add('정치 기사 성격', false, PENALTY_POLITICS);
+  if (signals.market) add('주가·실적 기사 성격', false, PENALTY_MARKET);
+  if (signals.event) add('행사·인사 기사 성격', false, PENALTY_EVENT);
+  if (signals.opinion && !(signals.burden && signals.demand)) {
+    add('사설·칼럼 성격', false, PENALTY_OPINION);
+  }
+  if ((signals.titleRegulation || signals.descriptionRegulation) && !hasConcreteImpact) {
+    add('기업 영향이 없는 정책 소개', false, PENALTY_POLICY_ONLY);
+  }
+
+  return reasons;
+}
+
 /** DB에서 읽은 값이 비었거나 이상해도 0~100 정수로 맞춰 준다 */
 export function toRelevanceScore(value: unknown): number {
   const parsed = typeof value === 'number' ? value : Number(value);

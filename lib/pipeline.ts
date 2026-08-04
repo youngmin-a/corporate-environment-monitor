@@ -6,7 +6,14 @@ import {
   rankCandidates,
   type ExcludedSample,
 } from '@/lib/collector';
-import { markAttempt, markSuccess, readState, remainingQuota } from '@/lib/collectionState';
+import {
+  COOLDOWN_MINUTES,
+  isCooldownOver,
+  markAttempt,
+  markSuccess,
+  readState,
+  remainingQuota,
+} from '@/lib/collectionState';
 import { ALL_INDUSTRIES, type Industry } from '@/lib/industries';
 import { fetchAllCandidates } from '@/lib/naver';
 import { MAX_VISIBLE_ARTICLES } from '@/lib/relevance';
@@ -75,6 +82,12 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
       return { saved: 0, skipped: `오늘 수집 상한(${MAX_VISIBLE_ARTICLES}건)에 도달했습니다.` };
     }
 
+    // PRD 5-1: 수동 새로고침 쿨다운은 반드시 서버에서 강제한다.
+    // 화면 쪽 검증만으로는 API를 직접 부르면 그대로 통과한다.
+    if (!isCooldownOver(state)) {
+      return { saved: 0, skipped: `수집 쿨다운 중입니다. ${COOLDOWN_MINUTES}분 뒤에 다시 시도해 주세요.` };
+    }
+
     await markAttempt();
   } else {
     quota = MAX_VISIBLE_ARTICLES;
@@ -100,7 +113,9 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
       title: group.representative.title,
       press: group.representative.press,
       published_at: group.representative.publishedAt,
-      summary: summaries[index],
+      summary: summaries[index].lines,
+      // PRD 5-2-1: 상세용 확장 요약은 같은 응답에서 함께 받는다 (추가 호출 없음)
+      expanded_summary: summaries[index].expandedLines,
       group_id: null,
       industries: group.representative.industries,
       relevance_score: group.representative.score,
@@ -111,7 +126,9 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
         title: item.title,
         press: item.press,
         published_at: item.publishedAt,
+        // PRD 5-2: 요약은 대표 기사 1건에만 만든다
         summary: null,
+        expanded_summary: null,
         group_id: group.representative.url,
         industries: item.industries,
         relevance_score: item.score,
@@ -144,7 +161,7 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
       unseen: unseen.length,
       alive: alive.length,
       groups: groups.length,
-      summaryFailed: summaries.filter((summary) => summary === null).length,
+      summaryFailed: summaries.filter((summary) => summary.lines === null).length,
       byIndustry,
       excludedSamples,
     },

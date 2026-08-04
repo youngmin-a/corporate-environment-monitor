@@ -1,6 +1,5 @@
-import { Header } from '@/components/Header';
-import { IndustryFilteredArticles } from '@/components/IndustryFilteredArticles';
-import { getCollectionState, getRecentArticleGroups } from '@/lib/articles';
+import { Dashboard } from '@/components/Dashboard';
+import { getArticleStats, getCollectionState, getRecentArticleGroups } from '@/lib/articles';
 
 /**
  * Supabase 조회(supabase-js의 내부 fetch)는 기본 캐시 대상이라, 동적 API를 쓰지 않는
@@ -11,26 +10,31 @@ import { getCollectionState, getRecentArticleGroups } from '@/lib/articles';
 export const dynamic = 'force-dynamic';
 
 /**
- * 기사 목록 화면 (DESIGN.md 2-2, 2-4).
+ * 기사 모니터링 대시보드 (DESIGN.md 2-2, 2-4).
  *
- * 서버 컴포넌트에서 Supabase를 직접 조회하고, 산업 드롭다운·필터링은
- * IndustryFilteredArticles(클라이언트 컴포넌트)에 맡긴다. 화면 배치 순서는
- * 제목 → 마지막 수집 시각 → 새로고침 버튼(이상 Header) → 산업 드롭다운 → 기사 목록.
+ * 서버 컴포넌트에서 Supabase를 한 번만 조회하고, 검색·필터·정렬·지표·인사이트·
+ * 상세는 모두 Dashboard(클라이언트 컴포넌트)가 내려온 데이터로 계산한다 —
+ * 필터를 바꿔도 서버에 다시 묻지 않는다.
  */
 export default async function Home() {
-  const [groups, collectionState] = await Promise.all([
+  const [groups, collectionState, stats] = await Promise.all([
     getRecentArticleGroups(),
     getCollectionState(),
+    getArticleStats(),
   ]);
 
   return (
     <div
       data-main-content
       tabIndex={-1}
-      className="mx-auto w-full max-w-[1180px] flex-1 px-4 sm:px-6 lg:px-8 focus:outline-none"
+      className="mx-auto w-full max-w-[1560px] flex-1 px-4 pb-24 sm:px-6 lg:px-8 focus:outline-none"
     >
-      <Header lastSuccessAt={collectionState.lastSuccessAt} />
-      <IndustryFilteredArticles groups={groups} />
+      <Dashboard
+        groups={groups}
+        lastSuccessAt={collectionState.lastSuccessAt}
+        totalArticles={stats.totalArticles}
+        collectedToday={stats.collectedToday}
+      />
     </div>
   );
 }

@@ -20,12 +20,16 @@ const article = (
   groupId: string | null = null,
   industries: Industry[] = [],
   relevanceScore = 75,
+  // 샘플 데이터에는 확장 요약을 넣지 않는다 — 상세 화면의 fallback 경로를
+  // 그대로 확인할 수 있게 두는 편이 낫다
+  expandedSummary: string[] | null = null,
 ): Article => ({
   url,
   title,
   press,
   publishedAt,
   summary,
+  expandedSummary,
   collectedAt: '2026-08-04T08:00:00+09:00',
   groupId,
   industries,
