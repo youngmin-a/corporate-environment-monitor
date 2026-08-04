@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * PRD 디자인 규칙에 따라 밝은 화면 하나로 고정한다.
+ * 다크 모드는 색상 규칙(네이비 + 파랑 강조)이 정해져 있지 않아 넣지 않는다.
+ */
+body {
+  color: #2b2f36;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* 산업 선택 패널 최초 등장 효과 (PRD 5-3) — 짧은 fade-in + 상향 이동 */
+@keyframes industry-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-industry-panel-in {
+  animation: industry-panel-in 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-industry-panel-in {
+    animation: none;
+  }
+}

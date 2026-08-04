@@ -1,0 +1,40 @@
+# 비밀 값 — 절대 커밋하지 않는다
+.env
+.env*.local
+
+# 의존성
+node_modules
+/.pnp
+.pnp.*
+
+# Next.js 빌드 결과물
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# 삭제 대기 파일 (CLAUDE.md 규칙에 따라 지우지 않고 여기로 옮긴다)
+/trash-can/
+
+# 테스트
+/coverage
+
+# 배포
+/.vercel
+
+# Supabase CLI 로컬 상태 (프로젝트 ref 캐시 등)
+/supabase/.temp
+/supabase/.branches
+
+# 디버그 로그
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+*.pem

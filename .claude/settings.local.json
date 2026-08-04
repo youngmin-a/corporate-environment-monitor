@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\",\"$env:LOCALAPPDATA\\\\Programs\\\\nodejs\",\"$env:APPDATA\\\\npm\" -ErrorAction SilentlyContinue | Select-Object -First 5 FullName; python --version; py --version)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" --version)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" --version)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npx --yes create-expo-app@latest . --template blank-typescript)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; $tmp = \"C:\\\\Users\\\\82107\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-82107-OneDrive-------my-app\\\\5b3e5d0a-07e0-47fe-8c1a-cb43242d7aab\\\\scratchpad\\\\scaffold\"; New-Item -ItemType Directory -Force $tmp | Out-Null; Set-Location $tmp; npx --yes create-expo-app@latest monitor --template blank-typescript)",
+      "PowerShell($root = \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; foreach \\($n in @\\('App.tsx','src','assets','index.ts','app.json','package.json','package-lock.json','tsconfig.json','node_modules','.expo'\\)\\) { $p = Join-Path $root $n; if \\(Test-Path $p\\) { Remove-Item $p -Recurse -Force; \"removed: $n\" } }; \"\"; \"-- remaining --\"; Get-ChildItem $root -Force | Select-Object -ExpandProperty Name)",
+      "Skill(bkit:pdca)",
+      "Skill(bkit:pdca:*)",
+      "PowerShell($src = \"C:\\\\Users\\\\82107\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-82107-OneDrive-------my-app\\\\5b3e5d0a-07e0-47fe-8c1a-cb43242d7aab\\\\scratchpad\\\\next\\\\monitor\"; $dst = \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; foreach \\($n in @\\('app','public','eslint.config.mjs','next-env.d.ts','next.config.ts','package.json','postcss.config.mjs','tsconfig.json'\\)\\) { Copy-Item -Path \\(Join-Path $src $n\\) -Destination $dst -Recurse -Force }; \"-- copied --\"; Get-ChildItem $dst -Force | Select-Object -ExpandProperty Name)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npm install)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npx tsc --noEmit)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npm install -D supabase 2>&1 | Select-Object -Last 10)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; $envContent = Get-Content .env; $tokenLine = $envContent | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' }; $env:SUPABASE_ACCESS_TOKEN = \\($tokenLine -replace '^SUPABASE_ACCESS_TOKEN=', ''\\).Trim\\(\\); npx supabase orgs list --output json)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npx supabase projects create --help)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npx supabase link --help; npx supabase init --help)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; Set-Location \"C:\\\\Users\\\\82107\\\\OneDrive\\\\바탕 화면\\\\my-app\"; npx supabase init --force --yes)",
+      "WebSearch",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; claude --version; claude auth status 2>&1)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:APPDATA\\\\npm;$env:Path\"; claude remote-control 2>&1)"
+    ]
+  }
+}
