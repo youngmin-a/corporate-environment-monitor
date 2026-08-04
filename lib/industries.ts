@@ -100,14 +100,15 @@ export function classifyIndustriesSafe(title: string, description: string): Indu
  * 일관되게 유지하기 위해서다. 파일은 `public/images/industries/`에 둔다.
  */
 export const INDUSTRY_IMAGES: Record<Industry, string> = {
-  자동차: '/images/industries/automotive.jpg',
-  철강: '/images/industries/steel.jpg',
-  '조선 및 해운': '/images/industries/shipbuilding-shipping.jpg',
-  에너지: '/images/industries/energy.jpg',
-  바이오: '/images/industries/bio.jpg',
+  자동차: '/images/industries/automotive.png',
+  철강: '/images/industries/steel.png',
+  '조선 및 해운': '/images/industries/shipbuilding-shipping.png',
+  에너지: '/images/industries/energy.png',
+  바이오: '/images/industries/bio.png',
+  // 금융은 아직 기존 이미지를 쓴다 — 새 이미지가 준비되면 png로 함께 교체한다
   금융: '/images/industries/finance.jpg',
-  반도체: '/images/industries/semiconductor.jpg',
-  정보통신: '/images/industries/ict.jpg',
+  반도체: '/images/industries/semiconductor.png',
+  정보통신: '/images/industries/ict.png',
 };
 
 /**
