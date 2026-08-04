@@ -1,17 +1,15 @@
 import { findExistingUrls, saveArticles, type ArticleInsert } from '@/lib/articles';
 import {
-  BACKFILL_LIMIT,
-  OPERATIONAL_DAILY_LIMIT,
   filterCandidates,
   groupDuplicates,
   isLinkAlive,
   rankCandidates,
-  selectWithIndustryQuota,
   type ExcludedSample,
 } from '@/lib/collector';
 import { markAttempt, markSuccess, readState, remainingQuota } from '@/lib/collectionState';
 import { ALL_INDUSTRIES, type Industry } from '@/lib/industries';
 import { fetchAllCandidates } from '@/lib/naver';
+import { MAX_VISIBLE_ARTICLES } from '@/lib/relevance';
 import { summarizeAll } from '@/lib/summarize';
 
 /** HEAD 요청을 한꺼번에 너무 많이 던지지 않도록 나눠서 보낸다 */
@@ -32,7 +30,7 @@ async function filterAliveLinks<T extends { url: string }>(items: T[]): Promise<
 /**
  * 운영 수집(operational)은 Vercel Cron·수동 새로고침이 쓰며 쿨다운·하루 상한이 적용된다.
  * 백필 수집(backfill)은 로컬 CLI 스크립트 전용이며 쿨다운·today_new_count를 건드리지
- * 않고 BACKFILL_LIMIT까지 한 번에 가져온다 (PLAN, item 3).
+ * 않고 MAX_VISIBLE_ARTICLES까지 한 번에 가져온다 (PLAN, item 3).
  */
 export type CollectionMode = 'operational' | 'backfill';
 
@@ -48,7 +46,7 @@ export type CollectResult = {
     summaryFailed: number;
     /** 대표 기사 기준 산업별 건수. 다중 산업 기사는 각 산업에 모두 집계한다 */
     byIndustry: Record<Industry, number>;
-    /** 산업 검색발 기사 중 관련성 점수·산업 미달로 제외된 표본 (보고용) */
+    /** 연관성 판정(필수 조건·60점 미만)에서 제외된 표본 (보고용) */
     excludedSamples: ExcludedSample[];
   };
 };
@@ -57,10 +55,13 @@ export type CollectResult = {
  * 수집 → 요약 → 저장 (DESIGN.md 2-1, PLAN 14번).
  *
  * 순서는 PRD 4번을 그대로 따른다:
- *   여유분 확인 → 네이버 호출 → 필터(기간·점수제) → 기수집 URL 제외
- *   → 링크 확인 → 중복 묶기 → 산업별 우선 쿠터 + 관련도순 컷 → 요약 → 저장
+ *   여유분 확인 → 네이버 호출 → 기간 필터 → 산업 분류·연관성 점수 계산
+ *   → 필수 통과 조건·60점 미만 제외 → 기수집 URL 제외 → 링크 확인
+ *   → 중복 묶기 → 점수순 상위 30건 컷 → 요약 → 저장
  *
- * 중복을 상한 컷보다 먼저 묶어야 상한이 실제 사안 수를 뜻하게 된다.
+ * 60점 미만을 요약보다 앞에서 자르는 것이 핵심이다 — 요약이 유일한 유료 호출이라
+ * 관련성 낮은 기사에 비용을 쓰지 않기 위해서다. 중복도 상한 컷보다 먼저 묶어야
+ * 상한이 실제 사안 수를 뜻하게 된다.
  */
 export async function runCollection(mode: CollectionMode = 'operational'): Promise<CollectResult> {
   let quota: number;
@@ -71,12 +72,12 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
 
     // 여유분이 없으면 외부 API를 아예 부르지 않는다 (호출·비용 절약)
     if (quota <= 0) {
-      return { saved: 0, skipped: `오늘 수집 상한(${OPERATIONAL_DAILY_LIMIT}건)에 도달했습니다.` };
+      return { saved: 0, skipped: `오늘 수집 상한(${MAX_VISIBLE_ARTICLES}건)에 도달했습니다.` };
     }
 
     await markAttempt();
   } else {
-    quota = BACKFILL_LIMIT;
+    quota = MAX_VISIBLE_ARTICLES;
   }
 
   const raw = await fetchAllCandidates();
@@ -86,8 +87,8 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
   const unseen = filtered.filter((item) => !existingUrls.has(item.url));
 
   const alive = await filterAliveLinks(unseen);
-  const allGroups = groupDuplicates(rankCandidates(alive));
-  const groups = selectWithIndustryQuota(allGroups, quota);
+  // rankCandidates가 점수순이므로 각 묶음의 대표는 자동으로 "점수 높고 최신인" 기사가 된다
+  const groups = groupDuplicates(rankCandidates(alive)).slice(0, quota);
 
   // PRD 5-2: 요약은 대표 기사 1건에 대해서만 만든다
   const summaries = await summarizeAll(groups.map((group) => group.representative));
@@ -102,6 +103,7 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
       summary: summaries[index],
       group_id: null,
       industries: group.representative.industries,
+      relevance_score: group.representative.score,
     });
     for (const item of group.related) {
       rows.push({
@@ -112,6 +114,7 @@ export async function runCollection(mode: CollectionMode = 'operational'): Promi
         summary: null,
         group_id: group.representative.url,
         industries: item.industries,
+        relevance_score: item.score,
       });
     }
   });

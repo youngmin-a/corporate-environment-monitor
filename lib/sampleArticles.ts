@@ -19,6 +19,7 @@ const article = (
   summary: string[] | null,
   groupId: string | null = null,
   industries: Industry[] = [],
+  relevanceScore = 75,
 ): Article => ({
   url,
   title,
@@ -28,6 +29,7 @@ const article = (
   collectedAt: '2026-08-04T08:00:00+09:00',
   groupId,
   industries,
+  relevanceScore,
 });
 
 export const sampleGroups: ArticleGroup[] = [

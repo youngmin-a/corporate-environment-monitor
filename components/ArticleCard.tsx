@@ -14,6 +14,17 @@ function formatDate(iso: string): string {
 type Props = { group: ArticleGroup };
 
 /**
+ * 연관성 점수 배지 (PRD 5-2).
+ * 카드에는 점수만 작게 보여주고, 산정 근거·키워드는 넣지 않는다.
+ * 60점 미만은 애초에 목록에 오지 않으므로 회색이 사실상 최하 등급이다.
+ */
+function relevanceBadgeClass(score: number): string {
+  if (score >= 80) return 'bg-[#E8F0FE] text-[#1A73E8]';
+  if (score >= 70) return 'bg-[#F1F5FD] text-[#4C7DD9]';
+  return 'bg-slate-100 text-slate-500';
+}
+
+/**
  * 기사 카드 한 장.
  *
  * PRD 5-2: 카드에 표시하는 것은 제목 / 언론사 / 발행일 / 요약 / 원문 링크 5가지와,
@@ -52,9 +63,21 @@ export function ArticleCard({ group }: Props) {
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <p className="text-[13px] text-slate-500">
-          {representative.press} · {formatDate(representative.publishedAt)}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] text-slate-500">
+            {representative.press} · {formatDate(representative.publishedAt)}
+          </p>
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${relevanceBadgeClass(
+              representative.relevanceScore,
+            )}`}
+          >
+            <span aria-hidden="true">연관성 {representative.relevanceScore}점</span>
+            <span className="sr-only">
+              기업 규제 및 애로 연관성 {representative.relevanceScore}점
+            </span>
+          </span>
+        </div>
 
         <div className="mt-4 border-t border-slate-200 pt-4">
           {representative.summary ? (

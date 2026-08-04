@@ -31,6 +31,12 @@ export type Article = {
    * 사용자가 만드는 태그가 아니라 키워드 기반 고정 분류이며, 없으면 빈 배열이다.
    */
   industries: Industry[];
+  /**
+   * 기업 규제·애로 연관성 점수 0~100 (PRD 5-1).
+   * DB의 `relevance_score`와 대응하며, 값이 없거나 이상하면 0으로 본다.
+   * 60점 미만 기사는 목록에 노출하지 않는다.
+   */
+  relevanceScore: number;
 };
 
 /**

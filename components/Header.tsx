@@ -31,17 +31,19 @@ type Props = {
  */
 export function Header({ lastSuccessAt, isRefreshing = false, onRefresh }: Props) {
   return (
-    <header className="bg-[#1E3A5F] py-4 md:py-5">
-      <div className="flex flex-col items-start gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+    <header className="mt-4 rounded-3xl border border-[#E8EAED] bg-white p-5 shadow-[0_1px_3px_rgba(60,64,67,0.08)] md:p-8">
+      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
         <div>
-          <h1 className="text-xl font-bold text-white">기업환경 모니터</h1>
-          <p className="mt-1 hidden text-[13px] text-[#C7D2E1] md:block">
-            기업 규제·애로사항 모니터링
+          <h1 className="text-2xl font-semibold tracking-tight text-[#202124]">
+            기업 환경 모니터링
+          </h1>
+          <p className="mt-1 text-sm text-[#5F6368]">
+            기업 규제·애로사항을 연관성 높은 순으로 확인합니다.
           </p>
         </div>
 
         <div className="flex flex-col items-start gap-2 md:items-end">
-          <p className="text-[13px] text-[#C7D2E1]">
+          <p className="text-[13px] text-[#5F6368]">
             {lastSuccessAt
               ? `마지막 수집: ${formatDateTime(lastSuccessAt)}`
               : '아직 수집한 기사가 없습니다'}
@@ -51,7 +53,7 @@ export function Header({ lastSuccessAt, isRefreshing = false, onRefresh }: Props
             type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition duration-150 hover:opacity-90 active:scale-95 disabled:opacity-60 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1E3A5F]"
+            className="rounded-full bg-[#1A73E8] px-5 py-2.5 text-sm font-medium text-white transition duration-150 hover:bg-[#1B66C9] active:scale-95 disabled:opacity-60 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] focus-visible:ring-offset-2"
           >
             {isRefreshing ? '수집 중…' : '새로고침'}
           </button>

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { OPERATIONAL_DAILY_LIMIT } from '@/lib/collector';
+import { MAX_VISIBLE_ARTICLES } from '@/lib/relevance';
 import type { CollectionState } from '@/types/article';
 
 /** PRD 5-1: 수동 새로고침 쿨다운 (분) */
@@ -43,12 +43,12 @@ export async function readState(): Promise<CollectionState> {
 /**
  * 오늘 남은 수집 여유분.
  *
- * PRD 5-1의 "하루 총합 40건"은 수집 1회당이 아니라 그날 전체 기준이다.
+ * PRD 5-1의 하루 상한(MAX_VISIBLE_ARTICLES)은 수집 1회당이 아니라 그날 전체 기준이다.
  * 날짜가 바뀌었으면 카운터를 0으로 보고 상한을 그대로 돌려준다.
  */
 export function remainingQuota(state: CollectionState, now: Date = new Date()): number {
-  if (state.todayDate !== todayKst(now)) return OPERATIONAL_DAILY_LIMIT;
-  return Math.max(0, OPERATIONAL_DAILY_LIMIT - state.todayNewCount);
+  if (state.todayDate !== todayKst(now)) return MAX_VISIBLE_ARTICLES;
+  return Math.max(0, MAX_VISIBLE_ARTICLES - state.todayNewCount);
 }
 
 /**

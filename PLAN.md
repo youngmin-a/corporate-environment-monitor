@@ -114,6 +114,36 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
    처리한다.
 8. 360 / 768 / 1024 / 1440px에서 레이아웃을 확인하고 타입 검사·lint·build를 돌린다.
 
+## 연관성 점수제와 상단 UI 정리 (사용자 요청, 기존 순서에 끼워 넣지 않음)
+
+기사가 100건을 넘어 목록 탐색 부담이 커졌고, 관련성이 낮은 기사도 같은 비중으로
+노출되고 있었다. 기업 규제·애로 연관성을 0~100점으로 매겨 낮은 기사를 수집·요약
+단계에서부터 걸러내고, 화면은 상단 영역만 정리한다. **기사 카드 디자인은 건드리지
+않는다.**
+
+1. `articles`에 `relevance_score smallint not null default 0 check (0~100)` 컬럼을
+   추가한다 (새 테이블 없음). `Article` 타입에도 `relevanceScore`를 추가한다.
+2. `lib/relevance.ts`에 `calculateRelevanceScore()`와 필수 통과 조건 판정,
+   `MIN_RELEVANCE_SCORE = 60`·`MAX_VISIBLE_ARTICLES = 30` 상수를 모은다.
+   점수 계산에 별도 AI 호출을 붙이지 않는다.
+3. 수집 파이프라인 순서를 "산업 분류 → 점수 계산 → 필수 조건·60점 미만 제외 →
+   링크 확인 → 중복 묶기 → 점수순 상위 30건 → 요약 → 저장"으로 바꾼다. 60점 미만은
+   요약 API로 넘기지 않는다.
+4. `getRecentArticleGroups()`를 60점 이상·점수 내림차순·상위 30건으로 바꾼다.
+5. `scripts/backfill-relevance.ts`로 기존 기사 점수를 일회성 계산한다
+   (`title + summary` 기준). 점수가 낮아도 행을 지우지 않고 화면에서만 숨긴다.
+6. `ArticleCard`의 언론사 행 오른쪽에 점수 배지만 추가한다. 카드의 다른 요소는
+   그대로 둔다.
+7. 페이지 배경·헤더 패널·산업 선택 영역·새로고침 버튼을 Google Workspace 계열로
+   정리하고, 서비스명을 `기업 환경 모니터링`으로 바꾼다.
+8. 점수 함수를 대표 사례로 검증한 뒤 타입 검사·lint·build와 모바일·데스크톱 화면을
+   확인한다.
+
+> 이번 변경으로 이전의 `OPERATIONAL_DAILY_LIMIT`(40) · `BACKFILL_LIMIT`(80) ·
+> `INDUSTRY_QUOTA_PER_INDUSTRY`(3) · `MIN_INDUSTRY_SEARCH_SCORE`(3)는
+> `MIN_RELEVANCE_SCORE`·`MAX_VISIBLE_ARTICLES`로 대체된다. 산업별 우선 목표는
+> "연관성 높은 순" 정렬과 충돌해 걷어낸다.
+
 ## 순서를 정한 이유
 
 - **1~5번을 먼저 둔 이유**: 화면과 저장소부터 만들어 두면, 이후 실제 데이터를 붙일 때

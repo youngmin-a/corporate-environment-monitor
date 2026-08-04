@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "backfill:industries": "tsx scripts/backfill-industries.ts",
+    "backfill:relevance": "tsx scripts/backfill-relevance.ts",
     "backfill:collect": "tsx scripts/backfill-collect.ts"
   },
   "dependencies": {

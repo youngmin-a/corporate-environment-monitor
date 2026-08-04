@@ -32,10 +32,11 @@ export function IndustryFilteredArticles({ groups }: Props) {
 
   return (
     <>
-      <div className="mt-4 animate-industry-panel-in rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:flex md:items-center md:gap-3 md:p-4">
+      {/* Google 검색창처럼 크고 둥근 선택 영역. 기존 label + HTML select 구조는 그대로 둔다 */}
+      <div className="mt-4 flex animate-industry-panel-in items-center gap-3 rounded-2xl border border-[#E8EAED] bg-white px-4 shadow-[0_1px_3px_rgba(60,64,67,0.08)] focus-within:border-[#1A73E8] focus-within:ring-2 focus-within:ring-[#1A73E8]/30 md:px-6">
         <label
           htmlFor="industry-filter"
-          className="block text-xs font-medium text-slate-500 md:shrink-0 md:text-sm"
+          className="shrink-0 text-sm font-medium text-[#5F6368]"
         >
           산업 선택
         </label>
@@ -43,7 +44,7 @@ export function IndustryFilteredArticles({ groups }: Props) {
           id="industry-filter"
           value={selectedIndustry}
           onChange={handleChange}
-          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] md:mt-0 md:max-w-xs"
+          className="h-[54px] w-full cursor-pointer bg-transparent text-[15px] text-[#202124] focus:outline-none md:max-w-sm"
         >
           {INDUSTRY_FILTER_OPTIONS.map((option) => (
             <option key={option} value={option}>

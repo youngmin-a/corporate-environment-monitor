@@ -1,5 +1,5 @@
 /**
- * 일회성 스크립트 — 새 검색 구조(직접 규제 4 + 산업 8)로 최대 BACKFILL_LIMIT(80)건까지
+ * 일회성 스크립트 — 새 검색 구조(직접 규제 4 + 산업 8)로 최대 MAX_VISIBLE_ARTICLES건까지
  * 한 번에 수집한다. 운영 수집의 쿨다운·하루 상한(today_new_count)을 건드리지 않는다.
  *
  * 라우트가 아니라 CLI로만 실행한다: npm run backfill:collect
@@ -8,7 +8,7 @@
 import { runCollection } from '@/lib/pipeline';
 
 async function main() {
-  console.log('=== 일회성 백필 수집 시작 (쿨다운·하루 상한 미적용, 최대 80건) ===');
+  console.log('=== 일회성 백필 수집 시작 (쿨다운·하루 상한 미적용) ===');
   const result = await runCollection('backfill');
 
   console.log(`저장된 대표 기사(신규 사안): ${result.saved}건`);

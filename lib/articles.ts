@@ -1,4 +1,5 @@
 import { ALL_INDUSTRIES, type Industry } from '@/lib/industries';
+import { MAX_VISIBLE_ARTICLES, MIN_RELEVANCE_SCORE, toRelevanceScore } from '@/lib/relevance';
 import { supabase } from '@/lib/supabase';
 import type { Article, ArticleGroup, CollectionState } from '@/types/article';
 
@@ -12,6 +13,7 @@ type ArticleRow = {
   collected_at: string;
   group_id: string | null;
   industries: unknown;
+  relevance_score: unknown;
 };
 
 /** 값이 없거나 올바른 배열이 아니면 빈 배열로 처리한다 (PRD 5-3) */
@@ -30,6 +32,7 @@ function toArticle(row: ArticleRow): Article {
     collectedAt: row.collected_at,
     groupId: row.group_id,
     industries: toIndustries(row.industries),
+    relevanceScore: toRelevanceScore(row.relevance_score),
   };
 }
 
@@ -37,8 +40,12 @@ function toArticle(row: ArticleRow): Article {
  * 화면 기본 표시 범위인 최근 N일치 기사를 대표 기사 단위로 묶어 가져온다
  * (PRD 5-1: "화면 기본 표시는 최근 7일").
  *
- * 대표 기사가 이 기간 밖에 있어 함께 조회되지 않은 중복 기사는 표시하지 않는다 —
- * 요약이 없는 기사를 단독 카드로 보여주지 않기 위해서다.
+ * 대표 기사만 먼저 "60점 이상 → 점수 내림차순 → 발행일 최신순 → 상위 30건"으로
+ * 뽑고, 거기 묶인 관련 기사를 따로 붙인다. 대표와 관련 기사를 한 번에 조회하면
+ * 관련 기사가 상한 30건을 잡아먹어 카드 수가 줄어들기 때문이다.
+ *
+ * 관련 기사에는 점수 조건을 걸지 않는다 — 카드 안에서 제목·링크만 보여주는
+ * 부속 정보라 대표 기사의 노출 여부만 판단하면 충분하다.
  */
 export async function getRecentArticleGroups(days = 7): Promise<ArticleGroup[]> {
   const since = new Date();
@@ -49,19 +56,34 @@ export async function getRecentArticleGroups(days = 7): Promise<ArticleGroup[]> 
     .from('articles')
     .select('*')
     .gte('published_at', sinceDate)
-    .order('published_at', { ascending: false });
+    .is('group_id', null)
+    .gte('relevance_score', MIN_RELEVANCE_SCORE)
+    .order('relevance_score', { ascending: false })
+    .order('published_at', { ascending: false })
+    .limit(MAX_VISIBLE_ARTICLES);
 
   if (error) throw error;
 
-  const rows = (data ?? []).map(toArticle);
+  const representatives = (data ?? []).map(toArticle);
+  if (representatives.length === 0) return [];
 
-  const groups: ArticleGroup[] = [];
-  for (const item of rows) {
-    if (item.groupId) continue; // 대표 기사가 아니면 건너뛴다 — 아래에서 대표에 붙인다
-    const related = rows.filter((row) => row.groupId === item.url);
-    groups.push({ representative: item, related });
-  }
-  return groups;
+  const { data: relatedData, error: relatedError } = await supabase
+    .from('articles')
+    .select('*')
+    .in(
+      'group_id',
+      representatives.map((item) => item.url),
+    )
+    .order('published_at', { ascending: false });
+
+  if (relatedError) throw relatedError;
+
+  const related = (relatedData ?? []).map(toArticle);
+
+  return representatives.map((representative) => ({
+    representative,
+    related: related.filter((row) => row.groupId === representative.url),
+  }));
 }
 
 /**
@@ -95,6 +117,7 @@ export type ArticleInsert = {
   summary: string[] | null;
   group_id: string | null;
   industries: Industry[];
+  relevance_score: number;
 };
 
 /**
