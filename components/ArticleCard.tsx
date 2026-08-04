@@ -19,9 +19,9 @@ type Props = { group: ArticleGroup };
  * 60점 미만은 애초에 목록에 오지 않으므로 회색이 사실상 최하 등급이다.
  */
 function relevanceBadgeClass(score: number): string {
-  if (score >= 80) return 'bg-[#E8F0FE] text-[#1A73E8]';
-  if (score >= 70) return 'bg-[#F1F5FD] text-[#4C7DD9]';
-  return 'bg-slate-100 text-slate-500';
+  if (score >= 85) return 'score-badge--high';
+  if (score >= 70) return 'score-badge--mid';
+  return 'score-badge--low';
 }
 
 /**
@@ -39,18 +39,21 @@ export function ArticleCard({ group }: Props) {
   const imageSrc = getArticleImage(representative.industries);
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
+    <article className="article-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] motion-reduce:transform-none motion-reduce:transition-none">
+      {/* hover로 들어올 때 카드 위를 한 번 지나가는 빛 */}
+      <span aria-hidden="true" className="article-card__sheen" />
+
       <div className="relative aspect-video overflow-hidden bg-slate-200">
         {imageFailed ? (
           // 이미지 파일이 없거나 로딩에 실패하면 깨진 아이콘 대신 브랜드 색 그라데이션으로 대체한다
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A5F] to-[#2563EB]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1A73E8] via-[#4F46E5] to-[#7C3AED]" />
         ) : (
           <Image
             src={imageSrc}
             alt=""
             fill
             sizes="(max-width: 767px) 100vw, 50vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transform-none motion-reduce:transition-none"
+            className="article-card__image object-cover motion-reduce:transform-none motion-reduce:transition-none"
             onError={() => setImageFailed(true)}
           />
         )}
@@ -68,7 +71,7 @@ export function ArticleCard({ group }: Props) {
             {representative.press} · {formatDate(representative.publishedAt)}
           </p>
           <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${relevanceBadgeClass(
+            className={`score-badge shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${relevanceBadgeClass(
               representative.relevanceScore,
             )}`}
           >
@@ -128,7 +131,9 @@ export function ArticleCard({ group }: Props) {
               isExpanded ? 'mt-3 grid-rows-[1fr]' : 'grid-rows-[0fr]'
             }`}
           >
-            <div className="overflow-hidden">
+            <div className="relative overflow-hidden">
+              {/* 펼치는 순간 상단을 따라 한 번 지나가는 컬러 라인 */}
+              {isExpanded && <span aria-hidden="true" className="related-line" />}
               <ul className="space-y-2 border-t border-slate-200 pt-3">
                 {related.map((item) => (
                   <li key={item.url} className="text-sm leading-5">

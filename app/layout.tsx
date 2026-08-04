@@ -35,7 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         배경은 Google Workspace 계열의 밝은 회색(#F8F9FA)에 아주 옅은 radial gradient만
         얹어 색이 도드라지지 않게 한다.
       */}
-      <body className="flex min-h-full flex-col bg-[#F8F9FA] bg-[radial-gradient(circle_at_85%_5%,rgba(66,133,244,0.10),transparent_30%),radial-gradient(circle_at_10%_0%,rgba(52,168,83,0.06),transparent_25%)] bg-fixed">
+      <body className="app-background flex min-h-full flex-col">
         <script dangerouslySetInnerHTML={{ __html: INTRO_FLASH_GUARD }} />
         {children}
         <IntroOverlay />

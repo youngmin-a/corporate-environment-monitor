@@ -6,10 +6,26 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 const INTRO_STORAGE_KEY = 'business-monitor-intro-seen';
 
 /**
- * 진입 애니메이션 총 길이(ms). 원형 확장 → 오버레이 소멸 → 메인 공개까지 포함한다.
- * PRD: 버튼 클릭부터 메인 화면이 완전히 보일 때까지 900~1,200ms 안에 끝낸다.
+ * 진입 애니메이션 총 길이(ms).
+ * 충격파 → 웨이브 1·2 → 컬러 스윕 → 메인 공개까지 포함한다.
+ * PRD: 버튼 클릭부터 메인 화면이 완전히 보일 때까지 1.0~1.4초 안에 끝낸다.
+ *
+ * 하위 단계는 별도 타이머 없이 CSS animation-delay로 순서를 잡는다 —
+ * 타이머를 여러 개 두면 어긋날 여지만 늘고, 실제로 필요한 것은 "언제 끝나는가"뿐이다.
  */
-const EXIT_DURATION_MS = 1050;
+const EXIT_DURATION_MS = 1250;
+
+/**
+ * 전환 단계. 실제 순서 제어는 CSS가 하고, 컴포넌트는 이 흐름을 하나의 상태로만 들고 있는다.
+ *   impact(0ms) → wave-one(60ms) → wave-two(170ms) → sweep(300ms) → reveal(620ms)
+ */
+export type IntroTransitionPhase =
+  | 'idle'
+  | 'impact'
+  | 'wave-one'
+  | 'wave-two'
+  | 'reveal'
+  | 'complete';
 
 /** 동작 줄이기 환경에서는 단순 fade만 하므로 훨씬 짧게 끝낸다 */
 const REDUCED_EXIT_DURATION_MS = 180;
@@ -122,21 +138,27 @@ export function IntroOverlay() {
       role="dialog"
       aria-modal="true"
       aria-label="기업 환경 모니터링 시작"
-      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-6 ${
+      className={`intro-background fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-6 ${
         isExiting ? 'animate-intro-overlay-out' : 'animate-intro-bg-in'
       }`}
-      style={{
-        background:
-          'radial-gradient(circle at 50% 45%, rgba(26, 115, 232, 0.14), transparent 34%), radial-gradient(circle at 20% 20%, rgba(52, 168, 83, 0.06), transparent 25%), #f8f9fa',
-      }}
     >
-      {/* 버튼 뒤에서 퍼지는 원형. 확장되면서 화면을 덮었다가 오버레이와 함께 사라진다 */}
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#ffffff_0%,#eaf1fd_70%,#dce8fb_100%)] opacity-0 ${
-          isExiting ? 'animate-intro-circle' : ''
-        }`}
-      />
+      {/* 배경: 천천히 출렁이는 컬러 웨이브 3층 + 격자 + 중앙 빛 확산 */}
+      <div aria-hidden="true" className="intro-wave intro-wave--1" />
+      <div aria-hidden="true" className="intro-wave intro-wave--2" />
+      <div aria-hidden="true" className="intro-wave intro-wave--3" />
+      <div aria-hidden="true" className="intro-grid" />
+      <div aria-hidden="true" className="intro-glow" />
+
+      {/* 전환 레이어. 클릭한 뒤에만 DOM에 올라오고, 끝나면 오버레이째 제거된다 */}
+      {isExiting && (
+        <>
+          <span aria-hidden="true" className="intro-impact" />
+          <div aria-hidden="true" className="intro-sweep intro-sweep--one" />
+          <div aria-hidden="true" className="intro-sweep intro-sweep--two" />
+          <div aria-hidden="true" className="intro-bloom" />
+          <div aria-hidden="true" className="intro-sweep intro-sweep--three" />
+        </>
+      )}
 
       <div
         className={`relative flex flex-col items-center text-center ${
@@ -144,20 +166,24 @@ export function IntroOverlay() {
         }`}
       >
         <h1 className="animate-intro-title text-[28px] font-semibold tracking-tight text-[#202124] sm:text-4xl">
-          기업 환경 모니터링
+          기업{' '}
+          {/* 핵심 단어에만 그라데이션을 준다 — 제목 전체에 쓰면 가독성이 떨어진다 */}
+          <span className="bg-gradient-to-r from-[#1A73E8] via-[#4F46E5] to-[#7C3AED] bg-clip-text text-transparent">
+            환경 모니터링
+          </span>
         </h1>
 
         <p className="animate-intro-desc mt-4 max-w-md text-[15px] leading-7 text-[#5F6368] sm:text-base">
           산업 현장의 규제와 애로를
           <br />
-          연관성 높은 정보로 정리합니다.
+          가치 있는 정보로 연결합니다.
         </p>
 
         <button
           type="button"
           onClick={handleStart}
           disabled={isExiting}
-          className="animate-intro-button mt-9 h-[54px] rounded-2xl bg-[#1A73E8] px-8 text-[15px] font-medium text-white shadow-[0_1px_3px_rgba(60,64,67,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_8px_rgba(26,115,232,0.35)] active:scale-[0.97] active:duration-150 disabled:cursor-default motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] focus-visible:ring-offset-2"
+          className="intro-start-button animate-intro-button mt-9 h-[54px] rounded-2xl px-8 text-[15px] font-medium text-white disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2"
         >
           모니터링 시작
         </button>

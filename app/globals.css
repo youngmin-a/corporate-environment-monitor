@@ -6,12 +6,40 @@
 }
 
 /*
+ * 컬러 모션 팔레트.
+ * 파랑·인디고를 기본으로, 시안·바이올렛을 보조로 쓴다. 그린·코랄은 포인트 전용이다.
+ * 색은 그라데이션·미세 테두리·빛 확산·선택 상태에만 쓰고, 본문 글자에는 쓰지 않는다.
+ */
+:root {
+  --motion-blue: #1a73e8;
+  --motion-cyan: #22d3ee;
+  --motion-violet: #7c3aed;
+  --motion-indigo: #4f46e5;
+  --motion-green: #34a853;
+  --motion-coral: #ff6b6b;
+  --motion-bg: #f6f8fc;
+}
+
+/*
  * PRD 디자인 규칙에 따라 밝은 화면 하나로 고정한다.
  * 다크 모드는 색상 규칙(네이비 + 파랑 강조)이 정해져 있지 않아 넣지 않는다.
  */
 body {
   color: #2b2f36;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/*
+ * 메인 화면 배경. 인트로와 같은 파랑·시안·바이올렛을 훨씬 낮은 투명도로 이어받아
+ * 전환이 끊겨 보이지 않게 한다. 배경 자체는 움직이지 않고 고정한다.
+ */
+.app-background {
+  background:
+    radial-gradient(circle at 12% 5%, rgba(34, 211, 238, 0.1), transparent 28%),
+    radial-gradient(circle at 88% 10%, rgba(124, 58, 237, 0.09), transparent 30%),
+    radial-gradient(circle at 80% 90%, rgba(26, 115, 232, 0.07), transparent 30%),
+    var(--motion-bg);
+  background-attachment: fixed;
 }
 
 /* 산업 선택 패널 최초 등장 효과 (PRD 5-3) — 짧은 fade-in + 상향 이동 */
@@ -73,15 +101,104 @@ body {
   }
 }
 
-/* 버튼 뒤에서 원형이 퍼져 화면을 덮는다 — 진한 파랑이 오래 남지 않도록 밝은 색을 쓴다 */
-@keyframes intro-circle-expand {
+/*
+ * 인트로 배경 웨이브 3층.
+ * 천이 천천히 흔들리는 정도로만 움직인다(8~14초). 인트로에서만 돌고, 메인에
+ * 진입하면 DOM에서 함께 제거되므로 반복 애니메이션이 뒤에 남지 않는다.
+ */
+@keyframes wave-drift-one {
+  0%,
+  100% {
+    transform: translate(-3%, 0) rotate(-1.2deg) scale(1);
+  }
+  50% {
+    transform: translate(4%, -12px) rotate(1deg) scale(1.03);
+  }
+}
+
+@keyframes wave-drift-two {
+  0%,
+  100% {
+    transform: translate(4%, 8px) rotate(1.4deg) scale(1.02);
+  }
+  50% {
+    transform: translate(-4%, -10px) rotate(-1deg) scale(1);
+  }
+}
+
+@keyframes wave-drift-three {
+  0%,
+  100% {
+    transform: translate(2%, 10px) rotate(0.8deg) scale(1);
+  }
+  50% {
+    transform: translate(-3%, -8px) rotate(-1.5deg) scale(1.03);
+  }
+}
+
+/* 클릭 지점에서 짧게 퍼지는 충격파. 1회만 실행한다 */
+@keyframes intro-impact {
   from {
-    opacity: 1;
+    opacity: 0.7;
     transform: translate(-50%, -50%) scale(0);
   }
   to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(16);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.8);
+  }
+}
+
+/* 1번 웨이브: 파랑→시안, 왼쪽 아래에서 오른쪽 위로 */
+@keyframes intro-sweep-one {
+  from {
+    transform: translateX(-110%) translateY(6%) rotate(-6deg) scaleY(0.8);
+  }
+  55% {
+    transform: translateX(10%) translateY(0) rotate(-1deg) scaleY(1.25);
+  }
+  to {
+    transform: translateX(110%) translateY(-4%) rotate(2deg) scaleY(1);
+  }
+}
+
+/* 2번 웨이브: 바이올렛→인디고, 반대 방향 */
+@keyframes intro-sweep-two {
+  from {
+    transform: translateX(110%) translateY(12%) rotate(5deg) scaleY(0.9);
+  }
+  55% {
+    transform: translateX(-8%) translateY(2%) rotate(1deg) scaleY(1.2);
+  }
+  to {
+    transform: translateX(-110%) translateY(-4%) rotate(-3deg) scaleY(1);
+  }
+}
+
+/* 3번 스윕: 그린→시안, 아래에서 위로 지나가는 보조 레이어 */
+@keyframes intro-sweep-three {
+  from {
+    opacity: 0.5;
+    transform: translateY(110%) scaleY(1);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-120%) scaleY(1.15);
+  }
+}
+
+/* 두 웨이브가 겹치는 순간의 짧은 빛 확산 (흰색 플래시가 아니라 컬러 혼합) */
+@keyframes intro-bloom {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.15);
   }
 }
 
@@ -89,10 +206,12 @@ body {
   from {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
   to {
     opacity: 0;
-    transform: translateY(-12px) scale(1.03);
+    transform: translateY(-18px) scale(1.08);
+    filter: blur(3px);
   }
 }
 
@@ -110,11 +229,13 @@ body {
 @keyframes main-reveal {
   from {
     opacity: 0;
-    transform: scale(1.025);
+    transform: scale(1.035) translateY(14px);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
+    filter: blur(0);
   }
 }
 
@@ -143,20 +264,576 @@ html[data-intro-seen='1'] [data-intro-overlay] {
   animation: intro-button-in 420ms cubic-bezier(0.2, 0, 0, 1) 280ms both;
 }
 
-.animate-intro-circle {
-  animation: intro-circle-expand 560ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
-}
-
 .animate-intro-content-out {
-  animation: intro-content-out 260ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+  animation: intro-content-out 280ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
 }
 
 .animate-intro-overlay-out {
-  animation: intro-overlay-out 1050ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: intro-overlay-out 1250ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 html[data-intro-reveal='1'] [data-main-content] {
-  animation: main-reveal 450ms cubic-bezier(0.2, 0, 0, 1) 560ms both;
+  animation: main-reveal 500ms cubic-bezier(0.2, 0, 0, 1) 620ms both;
+}
+
+/* ── 메인 헤더 ───────────────────────────────────────────────── */
+
+/*
+ * 반투명 + 낮은 blur로 깊이감만 준다. 과한 glassmorphism이 되지 않도록
+ * 불투명도를 0.84까지만 낮추고 테두리는 아주 옅은 인디고로 둔다.
+ */
+.app-header {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(79, 70, 229, 0.14);
+  box-shadow:
+    0 1px 2px rgba(60, 64, 67, 0.08),
+    0 8px 24px rgba(79, 70, 229, 0.06);
+}
+
+/* 상단 가장자리를 지나는 미세한 컬러 하이라이트 */
+.app-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.55),
+    rgba(124, 58, 237, 0.5),
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* 내부의 옅은 radial glow */
+.app-header::after {
+  content: '';
+  position: absolute;
+  right: -10%;
+  top: -60%;
+  width: 42%;
+  height: 220%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(26, 115, 232, 0.1), transparent 62%);
+}
+
+@keyframes header-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-header-in {
+  animation: header-in 460ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.refresh-button {
+  background: linear-gradient(110deg, #1a73e8 0%, #4f46e5 100%);
+  background-size: 160% 100%;
+  background-position: 0% 0%;
+  box-shadow: 0 2px 10px rgba(26, 115, 232, 0.26);
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-position 260ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-position: 100% 0%;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.34);
+}
+
+.refresh-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── 산업 선택 ───────────────────────────────────────────────── */
+
+.industry-panel {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(26, 115, 232, 0.16);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06);
+  transition:
+    border-color 170ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 170ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 왼쪽 안쪽의 작은 컬러 포인트 라인 */
+.industry-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  width: 3px;
+  height: 56%;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--motion-cyan), var(--motion-violet));
+  pointer-events: none;
+}
+
+.industry-panel:focus-within {
+  border-color: rgba(79, 70, 229, 0.55);
+  box-shadow:
+    0 0 0 4px rgba(79, 70, 229, 0.14),
+    0 2px 10px rgba(26, 115, 232, 0.12);
+}
+
+/*
+ * 산업을 바꾸면 필터 아래로 컬러 라인이 한 번 지나가, 아래 목록이 갱신됐다는 것을
+ * 눈으로 알 수 있게 한다. key가 바뀔 때마다 애니메이션이 다시 시작된다.
+ */
+@keyframes filter-flow {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.filter-flow-line {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--motion-cyan), var(--motion-blue), transparent);
+  animation: filter-flow 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* ── 기사 카드 ───────────────────────────────────────────────── */
+
+/*
+ * hover 시에만 드러나는 그라데이션 테두리.
+ * 테두리만 칠하려고 mask-composite로 안쪽을 파낸다. 카드를 강하게 감싸지 않도록
+ * 최종 불투명도는 0.16까지만 올린다.
+ */
+.article-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(26, 115, 232, 0.9),
+    rgba(34, 211, 238, 0.8) 45%,
+    rgba(124, 58, 237, 0.9)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 240ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.article-card:hover::after {
+  opacity: 0.16;
+}
+
+.article-card:hover {
+  box-shadow:
+    0 10px 26px rgba(26, 115, 232, 0.12),
+    0 2px 8px rgba(124, 58, 237, 0.08);
+}
+
+/* hover로 들어올 때 카드 위를 한 번 지나가는 빛. 반복하지 않는다 */
+@keyframes card-sheen {
+  from {
+    opacity: 0.18;
+    transform: translateX(-120%);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(160%);
+  }
+}
+
+.article-card__sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.9) 50%,
+    transparent 66%
+  );
+  z-index: 1;
+}
+
+.article-card:hover .article-card__sheen {
+  animation: card-sheen 560ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.article-card__image {
+  transition:
+    transform 280ms cubic-bezier(0.2, 0, 0, 1),
+    filter 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.article-card:hover .article-card__image {
+  transform: scale(1.025);
+  filter: brightness(1.04) saturate(1.04);
+}
+
+/* ── 연관성 점수 배지 ────────────────────────────────────────── */
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.score-badge {
+  animation: badge-in 240ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.score-badge--high {
+  background: linear-gradient(120deg, rgba(26, 115, 232, 0.14), rgba(124, 58, 237, 0.16));
+  color: #4338ca;
+}
+
+.score-badge--mid {
+  background: linear-gradient(120deg, rgba(34, 211, 238, 0.16), rgba(26, 115, 232, 0.14));
+  color: #0e7490;
+}
+
+.score-badge--low {
+  background: linear-gradient(120deg, rgba(100, 116, 139, 0.12), rgba(26, 115, 232, 0.1));
+  color: #475569;
+}
+
+/* ── 기사 목록 등장 ──────────────────────────────────────────── */
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.article-card {
+  animation: card-in 360ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* 앞의 8장만 순차로 들어오게 하고, 나머지는 기다리지 않고 바로 보이게 한다 */
+.article-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+.article-card:nth-child(2) {
+  animation-delay: 55ms;
+}
+.article-card:nth-child(3) {
+  animation-delay: 110ms;
+}
+.article-card:nth-child(4) {
+  animation-delay: 165ms;
+}
+.article-card:nth-child(5) {
+  animation-delay: 220ms;
+}
+.article-card:nth-child(6) {
+  animation-delay: 275ms;
+}
+.article-card:nth-child(7) {
+  animation-delay: 330ms;
+}
+.article-card:nth-child(8) {
+  animation-delay: 385ms;
+}
+
+/* 2열일 때만 좌우가 아주 조금 다른 방향에서 들어오게 한다 */
+@media (min-width: 768px) {
+  @keyframes card-in-left {
+    from {
+      opacity: 0;
+      transform: translate(-8px, 18px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+  }
+
+  @keyframes card-in-right {
+    from {
+      opacity: 0;
+      transform: translate(8px, 18px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+  }
+
+  .article-card:nth-child(odd) {
+    animation-name: card-in-left;
+  }
+
+  .article-card:nth-child(even) {
+    animation-name: card-in-right;
+  }
+}
+
+/* 관련 기사를 펼칠 때 상단을 따라 한 번 지나가는 컬러 라인 */
+@keyframes related-line {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.related-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  width: 100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--motion-cyan), var(--motion-blue), transparent);
+  animation: related-line 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* ── 빈 목록 안내 패널 ───────────────────────────────────────── */
+
+@keyframes empty-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.empty-panel {
+  animation: empty-panel-in 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(26, 115, 232, 0.1), transparent 62%),
+    rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(79, 70, 229, 0.12);
+}
+
+/* ── 인트로 배경 레이어 ───────────────────────────────────────── */
+
+.intro-background {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.22), transparent 34%),
+    radial-gradient(circle at 80% 25%, rgba(124, 58, 237, 0.2), transparent 32%),
+    radial-gradient(circle at 50% 85%, rgba(26, 115, 232, 0.24), transparent 42%),
+    var(--motion-bg);
+}
+
+/* 대형 blob. border-radius로 비정형 곡선을 만들고 transform으로만 움직인다 */
+.intro-wave {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 90vmax;
+  margin-left: -75vmax;
+  margin-top: -45vmax;
+  border-radius: 44% 56% 52% 48% / 46% 42% 58% 54%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.intro-wave--1 {
+  background: linear-gradient(120deg, rgba(26, 115, 232, 0.3), rgba(34, 211, 238, 0.24));
+  opacity: 0.26;
+  animation: wave-drift-one 11s ease-in-out infinite;
+}
+
+.intro-wave--2 {
+  background: linear-gradient(140deg, rgba(124, 58, 237, 0.28), rgba(79, 70, 229, 0.24));
+  opacity: 0.2;
+  border-radius: 52% 48% 44% 56% / 54% 50% 50% 46%;
+  animation: wave-drift-two 14s ease-in-out infinite;
+}
+
+.intro-wave--3 {
+  background: linear-gradient(100deg, rgba(52, 168, 83, 0.22), rgba(26, 115, 232, 0.26));
+  opacity: 0.14;
+  border-radius: 48% 52% 56% 44% / 50% 54% 46% 50%;
+  animation: wave-drift-three 9s ease-in-out infinite;
+}
+
+/* 아주 옅은 데이터 격자 — 정지 상태로 깊이감만 준다 */
+.intro-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(79, 70, 229, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 70, 229, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
+}
+
+/* 제목 주변의 약한 빛 확산 */
+.intro-glow {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 60vmax;
+  height: 40vmax;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(26, 115, 232, 0.16), transparent 62%);
+}
+
+/* ── 클릭 후 전환 레이어 ─────────────────────────────────────── */
+
+.intro-impact {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 22rem;
+  height: 22rem;
+  margin: -11rem 0 0 -11rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.75), rgba(26, 115, 232, 0.35) 55%, transparent 70%);
+  animation: intro-impact 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.intro-sweep {
+  position: absolute;
+  left: -30%;
+  top: -25%;
+  width: 160%;
+  height: 150%;
+  pointer-events: none;
+  border-radius: 46% 54% 50% 50% / 48% 44% 56% 52%;
+  will-change: transform;
+}
+
+.intro-sweep--one {
+  background: linear-gradient(115deg, var(--motion-blue), var(--motion-cyan));
+  opacity: 0.9;
+  animation: intro-sweep-one 480ms cubic-bezier(0.2, 0, 0, 1) 60ms both;
+}
+
+.intro-sweep--two {
+  background: linear-gradient(115deg, var(--motion-violet), var(--motion-indigo));
+  opacity: 0.85;
+  animation: intro-sweep-two 520ms cubic-bezier(0.2, 0, 0, 1) 170ms both;
+}
+
+.intro-sweep--three {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: linear-gradient(0deg, rgba(52, 168, 83, 0.55), rgba(34, 211, 238, 0.5));
+  animation: intro-sweep-three 450ms cubic-bezier(0.2, 0, 0, 1) 300ms both;
+}
+
+/* ── 시작 버튼 ───────────────────────────────────────────────── */
+
+.intro-start-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(110deg, #1a73e8 0%, #4f46e5 48%, #7c3aed 100%);
+  background-size: 160% 100%;
+  background-position: 0% 0%;
+  box-shadow:
+    0 6px 20px rgba(26, 115, 232, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition:
+    transform 200ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
+    background-position 320ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.intro-start-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background-position: 100% 0%;
+  box-shadow:
+    0 10px 26px rgba(79, 70, 229, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.intro-start-button:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 140ms;
+}
+
+/* 등장 직후 한 번만 지나가는 빛줄기. 반복하지 않는다 */
+.intro-start-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.42) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: button-sheen 900ms cubic-bezier(0.2, 0, 0, 1) 700ms both;
+  pointer-events: none;
+}
+
+@keyframes button-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(160%);
+  }
+}
+
+/* 두 웨이브가 교차하는 지점의 컬러 혼합 */
+.intro-bloom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46vmax;
+  height: 46vmax;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.5), rgba(34, 211, 238, 0.28) 50%, transparent 70%);
+  animation: intro-bloom 420ms ease-in-out 220ms both;
 }
 
 /*
@@ -189,14 +866,67 @@ html[data-intro-reveal='1'] [data-main-content] {
     animation: intro-simple-out 180ms linear both !important;
   }
 
-  /* 원형 확장과 콘텐츠 이탈 이동은 동작 줄이기에서 쓰지 않는다 */
-  .animate-intro-circle,
+  /* 콘텐츠 이탈의 이동·blur는 동작 줄이기에서 쓰지 않는다 */
   .animate-intro-content-out {
     animation: none !important;
     opacity: 0 !important;
   }
 
   html[data-intro-reveal='1'] [data-main-content] {
+    animation: intro-simple-in 180ms linear both !important;
+  }
+
+  /*
+   * 출렁이는 웨이브와 클릭 후 컬러 스윕은 모두 정지시킨다.
+   * 배경 색감은 그대로 두되 움직임만 없앤다 — 정보 전달에는 영향이 없다.
+   */
+  .intro-wave,
+  .intro-sweep,
+  .intro-bloom,
+  .intro-impact,
+  .intro-start-button::after,
+  .article-card__sheen,
+  .filter-flow-line,
+  .related-line {
+    animation: none !important;
+  }
+
+  .intro-sweep,
+  .intro-bloom,
+  .intro-impact,
+  .article-card__sheen,
+  .filter-flow-line,
+  .related-line {
+    display: none !important;
+  }
+
+  /* 카드는 제자리에서 나타나기만 한다 */
+  .article-card {
+    animation: intro-simple-in 180ms linear both !important;
+    animation-delay: 0ms !important;
+  }
+
+  .article-card:hover {
+    transform: none !important;
+  }
+
+  .article-card:hover .article-card__image {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .article-card:hover::after {
+    opacity: 0.16;
+  }
+
+  .intro-start-button:hover:not(:disabled),
+  .refresh-button:hover:not(:disabled) {
+    transform: none !important;
+  }
+
+  .score-badge,
+  .animate-header-in,
+  .empty-panel {
     animation: intro-simple-in 180ms linear both !important;
   }
 }

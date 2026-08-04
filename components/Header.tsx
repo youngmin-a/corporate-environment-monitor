@@ -31,8 +31,8 @@ type Props = {
  */
 export function Header({ lastSuccessAt, isRefreshing = false, onRefresh }: Props) {
   return (
-    <header className="mt-4 rounded-3xl border border-[#E8EAED] bg-white p-5 shadow-[0_1px_3px_rgba(60,64,67,0.08)] md:p-8">
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
+    <header className="app-header animate-header-in mt-4 rounded-3xl p-5 md:p-8">
+      <div className="relative flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#202124]">
             기업 환경 모니터링
@@ -53,7 +53,7 @@ export function Header({ lastSuccessAt, isRefreshing = false, onRefresh }: Props
             type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="rounded-full bg-[#1A73E8] px-5 py-2.5 text-sm font-medium text-white transition duration-150 hover:bg-[#1B66C9] active:scale-95 disabled:opacity-60 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] focus-visible:ring-offset-2"
+            className="refresh-button rounded-full px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2"
           >
             {isRefreshing ? '수집 중…' : '새로고침'}
           </button>

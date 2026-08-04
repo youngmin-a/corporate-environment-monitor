@@ -18,6 +18,8 @@ export function IndustryFilteredArticles({ groups }: Props) {
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryFilter>('전체');
   // 산업 변경 시 짧은 opacity 전환을 주기 위한 상태. DOM은 다시 만들지 않는다.
   const [isVisible, setIsVisible] = useState(true);
+  // 값이 바뀔 때마다 컬러 라인 애니메이션을 다시 시작시키기 위한 카운터
+  const [flowKey, setFlowKey] = useState(0);
 
   const filteredGroups =
     selectedIndustry === '전체'
@@ -27,13 +29,16 @@ export function IndustryFilteredArticles({ groups }: Props) {
   function handleChange(event: ChangeEvent<HTMLSelectElement>) {
     setSelectedIndustry(event.target.value as IndustryFilter);
     setIsVisible(false);
+    setFlowKey((previous) => previous + 1);
     requestAnimationFrame(() => setIsVisible(true));
   }
 
   return (
     <>
       {/* Google 검색창처럼 크고 둥근 선택 영역. 기존 label + HTML select 구조는 그대로 둔다 */}
-      <div className="mt-4 flex animate-industry-panel-in items-center gap-3 rounded-2xl border border-[#E8EAED] bg-white px-4 shadow-[0_1px_3px_rgba(60,64,67,0.08)] focus-within:border-[#1A73E8] focus-within:ring-2 focus-within:ring-[#1A73E8]/30 md:px-6">
+      <div className="industry-panel mt-4 flex animate-industry-panel-in items-center gap-3 rounded-2xl px-4 md:px-6">
+        {/* 산업을 바꿀 때마다 아래로 컬러 라인이 한 번 흐른다 */}
+        {flowKey > 0 && <span key={flowKey} aria-hidden="true" className="filter-flow-line" />}
         <label
           htmlFor="industry-filter"
           className="shrink-0 text-sm font-medium text-[#5F6368]"
@@ -63,11 +68,11 @@ export function IndustryFilteredArticles({ groups }: Props) {
       >
         {groups.length === 0 ? (
           // PRD 예외 처리: 전체 기사 자체가 없을 때의 기존 안내 문구를 그대로 쓴다
-          <p className="col-span-full py-16 text-center text-sm leading-6 text-slate-500">
+          <p className="empty-panel col-span-full rounded-2xl py-16 text-center text-sm leading-6 text-slate-500">
             오늘 조건에 맞는 새 기사가 없습니다.
           </p>
         ) : filteredGroups.length === 0 ? (
-          <p className="col-span-full py-16 text-center text-sm leading-6 text-slate-500">
+          <p className="empty-panel col-span-full rounded-2xl py-16 text-center text-sm leading-6 text-slate-500">
             선택한 산업에 해당하는 기사가 없습니다.
           </p>
         ) : (
