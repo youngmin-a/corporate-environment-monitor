@@ -24,7 +24,11 @@ export default async function Home() {
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] flex-1 px-4 sm:px-6 lg:px-8">
+    <div
+      data-main-content
+      tabIndex={-1}
+      className="mx-auto w-full max-w-[1180px] flex-1 px-4 sm:px-6 lg:px-8 focus:outline-none"
+    >
       <Header lastSuccessAt={collectionState.lastSuccessAt} />
       <IndustryFilteredArticles groups={groups} />
     </div>

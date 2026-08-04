@@ -37,6 +37,129 @@ body {
 }
 
 /*
+ * 첫 진입 인트로 (components/IntroOverlay.tsx).
+ * transform·opacity만 써서 GPU에서 처리되게 하고, 등장은 900ms 안에 끝낸다.
+ */
+@keyframes intro-bg-in {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes intro-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-button-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 버튼 뒤에서 원형이 퍼져 화면을 덮는다 — 진한 파랑이 오래 남지 않도록 밝은 색을 쓴다 */
+@keyframes intro-circle-expand {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(16);
+  }
+}
+
+@keyframes intro-content-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.03);
+  }
+}
+
+@keyframes intro-overlay-out {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 인트로가 걷히면서 뒤에 있던 메인 화면이 제자리로 돌아온다 */
+@keyframes main-reveal {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/*
+ * 이미 인트로를 본 세션이면 layout.tsx의 인라인 스크립트가 첫 페인트 전에
+ * data-intro-seen을 심어 둔다. React가 상태를 확인하기 전에 여기서 먼저 가려,
+ * 오버레이가 한 프레임 비쳤다 사라지는 flash를 막는다.
+ */
+html[data-intro-seen='1'] [data-intro-overlay] {
+  display: none;
+}
+
+.animate-intro-bg-in {
+  animation: intro-bg-in 600ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.animate-intro-title {
+  animation: intro-rise-in 420ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+}
+
+.animate-intro-desc {
+  animation: intro-rise-in 420ms cubic-bezier(0.2, 0, 0, 1) 200ms both;
+}
+
+.animate-intro-button {
+  animation: intro-button-in 420ms cubic-bezier(0.2, 0, 0, 1) 280ms both;
+}
+
+.animate-intro-circle {
+  animation: intro-circle-expand 560ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+}
+
+.animate-intro-content-out {
+  animation: intro-content-out 260ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+}
+
+.animate-intro-overlay-out {
+  animation: intro-overlay-out 1050ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+html[data-intro-reveal='1'] [data-main-content] {
+  animation: main-reveal 450ms cubic-bezier(0.2, 0, 0, 1) 560ms both;
+}
+
+/*
  * 동작 줄이기(운영체제 설정)를 켠 사용자를 위한 전역 안전장치.
  * 컴포넌트별 motion-reduce: 유틸리티와 별개로, 놓친 애니메이션이 있어도
  * 여기서 한 번 더 막는다. 기능 자체는 애니메이션 없이도 동일하게 동작한다.
@@ -49,5 +172,49 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /*
+   * 인트로만은 완전히 없애지 않고 짧은 fade로 남긴다 — 화면이 갑자기 바뀌면
+   * 무슨 일이 일어났는지 알기 어렵기 때문이다. 확대·이동 효과는 모두 뺀다.
+   */
+  .animate-intro-bg-in,
+  .animate-intro-title,
+  .animate-intro-desc,
+  .animate-intro-button {
+    animation: intro-simple-in 180ms linear both !important;
+  }
+
+  .animate-intro-overlay-out {
+    animation: intro-simple-out 180ms linear both !important;
+  }
+
+  /* 원형 확장과 콘텐츠 이탈 이동은 동작 줄이기에서 쓰지 않는다 */
+  .animate-intro-circle,
+  .animate-intro-content-out {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  html[data-intro-reveal='1'] [data-main-content] {
+    animation: intro-simple-in 180ms linear both !important;
+  }
+}
+
+@keyframes intro-simple-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-simple-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
