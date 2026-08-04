@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      {/* PRD: 세로 모드 스마트폰 화면 기준. 넓은 화면에서는 가운데 정렬된다 */}
+      {/* 모바일 우선 반응형: 좁은 화면(단일 열)부터 넓은 화면(1180px, 2열)까지 대응한다 */}
       <body className="flex min-h-full flex-col bg-slate-200">{children}</body>
     </html>
   );

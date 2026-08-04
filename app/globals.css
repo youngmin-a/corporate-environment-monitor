@@ -35,3 +35,19 @@ body {
     animation: none;
   }
 }
+
+/*
+ * 동작 줄이기(운영체제 설정)를 켠 사용자를 위한 전역 안전장치.
+ * 컴포넌트별 motion-reduce: 유틸리티와 별개로, 놓친 애니메이션이 있어도
+ * 여기서 한 번 더 막는다. 기능 자체는 애니메이션 없이도 동일하게 동작한다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

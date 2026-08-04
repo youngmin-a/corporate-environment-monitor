@@ -93,3 +93,38 @@ export function classifyIndustriesSafe(title: string, description: string): Indu
     return [];
   }
 }
+
+/**
+ * 산업별 대표 이미지 경로 (장식용). 기사 원문·언론사 사이트에서 이미지를 가져오지
+ * 않고, 로컬 고정 이미지만 쓴다 — 저작권 문제를 피하고 기사 본문 크롤링 금지 원칙과
+ * 일관되게 유지하기 위해서다. 파일은 `public/images/industries/`에 둔다.
+ */
+export const INDUSTRY_IMAGES: Record<Industry, string> = {
+  자동차: '/images/industries/automotive.jpg',
+  철강: '/images/industries/steel.jpg',
+  '조선 및 해운': '/images/industries/shipbuilding-shipping.jpg',
+  에너지: '/images/industries/energy.jpg',
+  바이오: '/images/industries/bio.jpg',
+  금융: '/images/industries/finance.jpg',
+  반도체: '/images/industries/semiconductor.jpg',
+  정보통신: '/images/industries/ict.jpg',
+};
+
+/**
+ * 산업 미분류 기사, 또는 유효하지 않은 산업값일 때 쓰는 기본 이미지.
+ * 아직 파일이 없다 — 없어도 ArticleCard가 CSS 그라데이션으로 대체한다.
+ */
+export const DEFAULT_ARTICLE_IMAGE = '/images/industries/default.jpg';
+
+/**
+ * 기사 카드에 쓸 대표 이미지 경로를 고른다.
+ * 여러 산업에 해당하면 industries 배열의 첫 번째 산업 이미지를 쓰고,
+ * 미분류(빈 배열)거나 매핑에 없는 값이면 기본 이미지로 대체한다.
+ * 실제 파일 존재 여부는 이 함수가 판단하지 않는다 — 로딩 실패 시 CSS
+ * 그라데이션으로 대체하는 처리는 ArticleCard(화면단)에서 한다.
+ */
+export function getArticleImage(industries: Industry[]): string {
+  const primaryIndustry = industries[0];
+  if (!primaryIndustry) return DEFAULT_ARTICLE_IMAGE;
+  return INDUSTRY_IMAGES[primaryIndustry] ?? DEFAULT_ARTICLE_IMAGE;
+}

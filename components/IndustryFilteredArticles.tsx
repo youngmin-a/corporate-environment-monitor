@@ -32,15 +32,18 @@ export function IndustryFilteredArticles({ groups }: Props) {
 
   return (
     <>
-      <div className="mx-4 mt-4 animate-industry-panel-in rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <label htmlFor="industry-filter" className="block text-xs font-medium text-slate-500">
+      <div className="mt-4 animate-industry-panel-in rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:flex md:items-center md:gap-3 md:p-4">
+        <label
+          htmlFor="industry-filter"
+          className="block text-xs font-medium text-slate-500 md:shrink-0 md:text-sm"
+        >
           산업 선택
         </label>
         <select
           id="industry-filter"
           value={selectedIndustry}
           onChange={handleChange}
-          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] md:mt-0 md:max-w-xs"
         >
           {INDUSTRY_FILTER_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -50,18 +53,20 @@ export function IndustryFilteredArticles({ groups }: Props) {
         </select>
       </div>
 
+      {/* 태블릿·데스크톱(768px~)에서는 2열, 그 아래는 1열. 산업 전환 시 opacity만
+          짧게 바뀔 뿐, 배열을 다시 만들거나 key를 바꾸지 않는다(기존 로직 그대로). */}
       <main
-        className={`space-y-3 p-4 transition-opacity duration-200 motion-reduce:transition-none ${
+        className={`grid grid-cols-1 gap-5 py-4 transition-opacity duration-200 motion-reduce:transition-none md:grid-cols-2 lg:gap-6 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
         {groups.length === 0 ? (
           // PRD 예외 처리: 전체 기사 자체가 없을 때의 기존 안내 문구를 그대로 쓴다
-          <p className="py-16 text-center text-sm leading-6 text-slate-500">
+          <p className="col-span-full py-16 text-center text-sm leading-6 text-slate-500">
             오늘 조건에 맞는 새 기사가 없습니다.
           </p>
         ) : filteredGroups.length === 0 ? (
-          <p className="py-16 text-center text-sm leading-6 text-slate-500">
+          <p className="col-span-full py-16 text-center text-sm leading-6 text-slate-500">
             선택한 산업에 해당하는 기사가 없습니다.
           </p>
         ) : (

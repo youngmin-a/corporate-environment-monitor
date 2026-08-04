@@ -90,6 +90,30 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 6. `app/page.tsx`에 `export const dynamic = 'force-dynamic'`을 추가해, Supabase
    데이터가 바뀐 뒤 화면이 빌드 시점 스냅샷 대신 매 요청마다 새로 반영되게 한다.
 
+## 반응형 이미지 카드 UI (사용자 요청, 기존 순서에 끼워 넣지 않음)
+
+기존 화면이 데스크톱에서도 430px 단일 열이라 넓은 화면을 못 쓰고 있었고, 카드가
+텍스트만 있어 훑어보기 어려웠다. 수집·요약·분류·필터 규칙은 그대로 두고 화면만
+바꾼다. 15~21번(3개월 소급, Cron, 예외 처리, 90일 삭제 등) 순서를 대신하지 않는다.
+
+1. 전체 콘텐츠 컨테이너를 최대 1180px + 반응형 좌우 여백(16/24/32px)으로 바꾼다
+   (`app/page.tsx`).
+2. 헤더를 모바일 세로 / 데스크톱 좌우 배치로 바꾸고 짧은 설명 문구를 데스크톱에만
+   넣는다 (`components/Header.tsx`).
+3. 기사 목록을 `grid-cols-1 md:grid-cols-2`로 바꾼다. 헤더·산업 필터는 전체 너비를
+   유지한다 (`components/IndustryFilteredArticles.tsx`).
+4. `lib/industries.ts`에 `INDUSTRY_IMAGES` 경로 매핑과 `getArticleImage()`를 만든다.
+   새 DB 컬럼이나 API 라우트는 만들지 않는다.
+5. `ArticleCard`에 16:9 이미지 영역(`next/image`, `fill`, `object-cover`)과 이미지 위
+   그라데이션 + 제목 오버레이를 추가하고, 본문을 `flex flex-col` + `mt-auto`로 바꿔
+   같은 행 카드의 링크 줄을 아래에 맞춘다.
+6. 이미지 파일이 없을 때 `onError`로 CSS 그라데이션 대체 배경을 보여준다 (깨진
+   이미지 아이콘 금지).
+7. hover(카드 2px 상승·그림자·이미지 1.02배)와 포커스 링을 붙이고, `motion-reduce:`
+   유틸리티와 `globals.css`의 전역 `prefers-reduced-motion` 규칙으로 동작 줄이기를
+   처리한다.
+8. 360 / 768 / 1024 / 1440px에서 레이아웃을 확인하고 타입 검사·lint·build를 돌린다.
+
 ## 순서를 정한 이유
 
 - **1~5번을 먼저 둔 이유**: 화면과 저장소부터 만들어 두면, 이후 실제 데이터를 붙일 때
