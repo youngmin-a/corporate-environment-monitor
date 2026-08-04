@@ -144,17 +144,17 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 > `MIN_RELEVANCE_SCORE`·`MAX_VISIBLE_ARTICLES`로 대체된다. 산업별 우선 목표는
 > "연관성 높은 순" 정렬과 충돌해 걷어낸다.
 
-## 첫 진입 인트로 (사용자 요청, 기존 순서에 끼워 넣지 않음)
+## 진입 인트로 (사용자 요청, 기존 순서에 끼워 넣지 않음)
 
-매일 쓰는 업무 도구라 인트로가 반복해서 진입을 막으면 안 된다. 별도 랜딩 페이지가
-아니라 메인 화면 위에 한 번만 나타나는 overlay로 만든다.
+별도 랜딩 페이지가 아니라 메인 화면 위에 덮는 overlay로 만든다.
 
-1. `components/IntroOverlay.tsx`에 `checking → visible → exiting → hidden` 상태를
-   두고, `sessionStorage`(`business-monitor-intro-seen`)로 세션당 1회만 띄운다.
-2. `layout.tsx`에 첫 페인트 전에 실행되는 인라인 스크립트를 넣어, 이미 본 세션에서
-   오버레이가 한 프레임 비치는 flash를 막는다.
-3. 등장(배경 → 제목 → 설명 → 버튼)은 900ms 안에 끝내고, 클릭 후 전환(원형 확장 →
-   콘텐츠 이탈 → 메인 공개)은 900~1,200ms 안에 끝낸다.
+1. `components/IntroOverlay.tsx`에 `visible → exiting → hidden` 상태를 두고,
+   **페이지가 로드될 때마다** 띄운다. 사용자 요청으로 "세션당 1회" 기억
+   (`sessionStorage`)은 걷어냈다.
+2. 저장하는 값이 없으므로 서버·클라이언트가 항상 같은 화면을 그린다 — flash 방지용
+   인라인 스크립트와 CSS 선차단 규칙도 함께 뺐다.
+3. 등장(배경 → 제목 → 설명 → 버튼)은 900ms 안에 끝내고, 클릭 후 전환은 2,700ms
+   다단계 모핑으로 진행한다.
 4. 전환 중 중복 클릭·배경 스크롤을 막고, 종료 후 `[data-main-content]`로 포커스를
    옮긴 뒤 오버레이를 DOM에서 제거한다.
 5. `prefers-reduced-motion`에서는 확대·이동을 빼고 180ms fade만 남긴다.

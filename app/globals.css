@@ -276,15 +276,6 @@ body {
   }
 }
 
-/*
- * 이미 인트로를 본 세션이면 layout.tsx의 인라인 스크립트가 첫 페인트 전에
- * data-intro-seen을 심어 둔다. React가 상태를 확인하기 전에 여기서 먼저 가려,
- * 오버레이가 한 프레임 비쳤다 사라지는 flash를 막는다.
- */
-html[data-intro-seen='1'] [data-intro-overlay] {
-  display: none;
-}
-
 .animate-intro-bg-in {
   animation: intro-bg-in 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }

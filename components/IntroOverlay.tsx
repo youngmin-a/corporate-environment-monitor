@@ -1,9 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-
-/** 같은 브라우저 세션에서 인트로를 다시 띄우지 않기 위한 표시 */
-const INTRO_STORAGE_KEY = 'business-monitor-intro-seen';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * 진입 애니메이션 총 길이(ms).
@@ -43,60 +40,31 @@ const REDUCED_PHASE_SCHEDULE: ReadonlyArray<{ phase: IntroTransitionPhase; at: n
   { phase: 'complete', at: REDUCED_EXIT_DURATION_MS },
 ];
 
-type IntroState = 'checking' | 'visible' | 'exiting' | 'hidden';
+type IntroState = 'visible' | 'exiting' | 'hidden';
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-/** 세션 동안 값이 바뀌지 않으므로 구독은 빈 함수로 둔다 */
-const subscribeToNothing = () => () => {};
-
-function readIntroSeen(): boolean {
-  try {
-    return window.sessionStorage.getItem(INTRO_STORAGE_KEY) !== null;
-  } catch {
-    // 시크릿 모드 등으로 sessionStorage를 못 쓰면 인트로를 한 번 보여준다
-    return false;
-  }
-}
-
 /**
- * 서버에서는 sessionStorage를 볼 수 없으므로 "아직 안 봤다"로 그린다.
- * 이미 본 세션이라면 layout.tsx의 인라인 스크립트가 첫 페인트 전에 CSS로 가리므로
- * 화면에는 비치지 않는다.
- */
-const readIntroSeenOnServer = () => false;
-
-/**
- * 첫 진입 인트로 (전체 화면 overlay).
+ * 진입 인트로 (전체 화면 overlay).
  *
  * 별도 라우트가 아니라 메인 화면 위에 덮는 방식이라, 인트로가 보이는 동안에도
  * 기사 목록은 서버에서 이미 렌더링돼 뒤에 준비돼 있다 — 버튼을 눌러도 API를
  * 다시 부르지 않는다.
  *
- * 첫 페인트 전에 layout.tsx의 인라인 스크립트가 sessionStorage를 확인해
- * `data-intro-seen`을 심어 두므로, 이미 본 세션에서는 이 오버레이가 화면에
- * 잠깐이라도 비치지 않는다(flash 방지).
+ * 사용자 요청으로 "본 적 있음"을 기억하지 않는다. 링크로 들어오든 새로고침을
+ * 하든 페이지가 새로 로드될 때마다 인트로를 띄운다. 서버·클라이언트가 항상
+ * 같은 화면을 그리므로 hydration 차이도 생기지 않는다.
  */
 export function IntroOverlay() {
-  const introSeen = useSyncExternalStore(
-    subscribeToNothing,
-    readIntroSeen,
-    readIntroSeenOnServer,
-  );
   const [phase, setPhase] = useState<IntroTransitionPhase>('idle');
   const timersRef = useRef<number[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // 클릭 후에는 introSeen이 true로 바뀌어도 전환 애니메이션을 끝까지 보여준다
   const state: IntroState =
-    phase === 'complete' || (introSeen && phase === 'idle')
-      ? 'hidden'
-      : phase === 'idle'
-        ? 'visible'
-        : 'exiting';
+    phase === 'complete' ? 'hidden' : phase === 'idle' ? 'visible' : 'exiting';
 
   // 인트로가 떠 있는 동안에는 뒤 화면이 스크롤되지 않게 막는다
   useEffect(() => {
@@ -119,12 +87,6 @@ export function IntroOverlay() {
   const handleStart = useCallback(() => {
     // 전환 중 중복 클릭을 막는다
     if (state !== 'visible') return;
-
-    try {
-      window.sessionStorage.setItem(INTRO_STORAGE_KEY, '1');
-    } catch {
-      // 저장에 실패해도 이번 진입은 그대로 진행한다
-    }
 
     setPhase('charging');
     // 뒤에 있던 메인 화면이 확대에서 제자리로 돌아오며 드러나게 한다
