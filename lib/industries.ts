@@ -83,3 +83,13 @@ export function classifyIndustries(title: string, description: string): Industry
     INDUSTRY_KEYWORDS[industry].some((keyword) => haystack.includes(keyword.toLowerCase())),
   );
 }
+
+/** 분류 오류가 나도 수집·백필 전체를 실패시키지 않도록 감싼 안전 버전 (PRD 5-3) */
+export function classifyIndustriesSafe(title: string, description: string): Industry[] {
+  try {
+    return classifyIndustries(title, description);
+  } catch (error) {
+    console.warn('산업 분류 실패:', title, error);
+    return [];
+  }
+}

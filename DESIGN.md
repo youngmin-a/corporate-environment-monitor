@@ -60,13 +60,16 @@
 Vercel Cron 신호   →   collection_state 확인:            →   Supabase
 (매일 08:00 KST)       초회면 3개월 소급 모드,               articles에 새 기사 저장
                         아니면 최근 7일 모드                  collection_state 갱신
-                        (오늘 여유분 = 20 - today_new_count)  (last_success_at,
+                        (오늘 여유분 = 40 - today_new_count)  (last_success_at,
                         여유분 0이면 API 호출 없이 종료         today_new_count,
                         ↓                                    initial_backfill_done)
                         네이버 뉴스 검색 API 호출
-                        (검색어 10개: "기업 규제" 등)
+                        (검색어 12개: 직접 규제 4 +
+                         산업 8, "기업 규제" 등)
                         ↓
-                        키워드·기간 필터
+                        기간 필터 + 관련성 점수 계산
+                        (산업 검색발 기사는 산업 분류 1개
+                         이상 + 점수 3점 이상만 후보 유지)
                         ↓
                         이미 수집한 URL 제외
                         ↓
@@ -74,21 +77,27 @@ Vercel Cron 신호   →   collection_state 확인:            →   Supabase
                         ↓
                         제목 유사도 0.7로 중복 묶기
                         ↓
-                        관련도 정렬 → 여유분만큼 컷 (묶음 단위로 센다)
+                        산업별 우선 목표(산업당 최대 3건) +
+                        관련성 점수순으로 여유분만큼 컷
                         ↓
                         대표 기사만 OpenAI로 요약
-                        ↓ (요약과 별개, AI 호출 아님)
-                        title+description을 classifyIndustries()에 넣어
-                        industries 배열 계산 후 저장 (아래 2-4)
+                        (industries는 필터 단계에서 이미
+                         classifyIndustries()로 계산해 둔 값을
+                         그대로 저장에 재사용 — 아래 2-4)
 ```
 
-> PRD 4번 "필터링(기간·키워드·중복·링크 확인) → 관련도순 20건 자르기" 순서를 그대로
-> 따른다. 중복을 먼저 묶어야 "20건"이 실제 사안 20개를 뜻하게 된다 — 나중에 묶으면
-> 중복 기사가 자리를 차지해 사안 수가 20건보다 줄어든다.
+> PRD 4번 "필터링(기간·관련성 점수·중복·링크 확인) → 산업별 우선 목표 + 관련도순
+> 40건 자르기" 순서를 그대로 따른다. 중복을 먼저 묶어야 "40건"이 실제 사안 40개를
+> 뜻하게 된다 — 나중에 묶으면 중복 기사가 자리를 차지해 사안 수가 40건보다 줄어든다.
 >
-> ⚠️ **주의**: HEAD 확인을 20건 컷 이전에 하므로, 필터 통과 기사가 많은 날은 HEAD
+> ⚠️ **주의**: HEAD 확인을 40건 컷 이전에 하므로, 필터 통과 기사가 많은 날은 HEAD
 > 요청이 수십~수백 건 나갈 수 있다. Vercel 함수 실행 시간 안에 끝나는지 구현 시
 > 확인이 필요하다 (design-validator 리스크 항목 참고).
+>
+> **일회성 백필 수집 모드**: 운영 흐름과 같은 파이프라인 함수(`runCollection`)를
+> `mode: 'backfill'`로 부르면 쿨다운·`today_new_count`를 건드리지 않고 상한만
+> 80건으로 늘려 실행한다. Next.js 라우트가 아니라 `npm run backfill:collect`
+> (`scripts/backfill-collect.ts`)로만 실행할 수 있다.
 
 ### 2-1-1. 상태 저장 (`collection_state`)
 

@@ -5,21 +5,29 @@
 const NAVER_NEWS_SEARCH_URL = 'https://naverapihub.apigw.ntruss.com/search/v1/news';
 
 /**
- * PRD 5-1: 규제 키워드 10개. "등"을 빼고 이 10개로 고정한다.
- * 검색 시 각 키워드 앞에 "기업"을 붙인다 — 부동산·방송·금융 규제 같은 무관한
- * 기사를 입구에서 걸러내기 위해서다.
+ * PRD 5-1: 검색어를 "직접 규제 검색"과 "산업 검색" 두 갈래로 나눈다.
+ * 네이버 API가 OR 검색을 지원하지 않아 각각 별도로 호출한다.
  */
-export const REGULATION_KEYWORDS = [
-  '규제',
-  '애로',
-  '인허가',
-  '행정처분',
-  '기업부담',
-  '규제개선',
-  '심의',
-  '인증',
-  '검역',
-  '시행규칙',
+export type SearchSource = 'regulation' | 'industry';
+
+/** 직접 규제 검색 4개 — 기업 규제·애로 사안을 좁게 겨냥한다 */
+export const DIRECT_REGULATION_QUERIES = [
+  '기업 규제',
+  '기업 인허가',
+  '기업 인증',
+  '기업 애로',
+] as const;
+
+/** 산업 검색 8개 — 업종별로 넓게 수집한 뒤 관련성 점수(lib/collector.ts)로 거른다 */
+export const INDUSTRY_SEARCH_QUERIES = [
+  '자동차 업계',
+  '철강 업계',
+  '조선 해운 업계',
+  '에너지 석유화학 업계',
+  '바이오 제약 업계',
+  '금융권',
+  '반도체 업계',
+  '정보통신 플랫폼 업계',
 ] as const;
 
 /** 네이버 뉴스 검색 API 응답 항목 하나. 필드명은 API 원본 그대로 둔다 */
@@ -70,16 +78,25 @@ async function searchNews(query: string): Promise<NaverNewsItem[]> {
   return data.items;
 }
 
+/** 검색 결과 하나와, 어느 검색어 갈래에서 나왔는지를 함께 담는다 */
+export type RawNewsEntry = { item: NaverNewsItem; source: SearchSource };
+
 /**
- * PRD 5-1: 규제 키워드 10개 앞에 "기업"을 붙여 검색어 10개로 나눠 호출한다.
+ * PRD 5-1: 직접 규제 검색 4개 + 산업 검색 8개, 총 12회를 각각 별도 호출한다.
  * 네이버 API가 OR 검색을 지원하지 않아 한 번에 묶을 수 없다.
  *
- * 이 함수는 필터링을 하지 않고 10회 호출 결과를 그대로 합쳐 돌려준다 (PLAN 6번).
- * 기간·키워드 필터, 관련도 정렬, 중복 묶기는 lib/collector.ts에서 다음 단계로 붙인다.
+ * 이 함수는 필터링을 하지 않고 호출 결과를 그대로 합쳐 돌려준다. 어느 검색어에서
+ * 왔는지(source)만 표시해 두고, 기간·점수 필터·관련도 정렬·중복 묶기는
+ * lib/collector.ts에서 다음 단계로 붙인다.
  */
-export async function fetchAllCandidates(): Promise<NaverNewsItem[]> {
-  const results = await Promise.all(
-    REGULATION_KEYWORDS.map((keyword) => searchNews(`기업 ${keyword}`)),
-  );
-  return results.flat();
+export async function fetchAllCandidates(): Promise<RawNewsEntry[]> {
+  const [regulationResults, industryResults] = await Promise.all([
+    Promise.all(DIRECT_REGULATION_QUERIES.map((query) => searchNews(query))),
+    Promise.all(INDUSTRY_SEARCH_QUERIES.map((query) => searchNews(query))),
+  ]);
+
+  return [
+    ...regulationResults.flat().map((item) => ({ item, source: 'regulation' as const })),
+    ...industryResults.flat().map((item) => ({ item, source: 'industry' as const })),
+  ];
 }

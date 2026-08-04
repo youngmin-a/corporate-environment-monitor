@@ -1,10 +1,47 @@
-import { REGULATION_KEYWORDS, type NaverNewsItem } from '@/lib/naver';
+import { classifyIndustriesSafe, type Industry } from '@/lib/industries';
+import type { RawNewsEntry, SearchSource } from '@/lib/naver';
 
 /** PRD 5-1: 매일 수집은 최근 7일 이내 발행 기사만 */
 export const RECENT_DAYS = 7;
 
-/** PRD 5-1: 하루 총합 상한 (수집 1회당이 아니라 그날 전체 기준) */
-export const DAILY_LIMIT = 20;
+/** PRD 5-1·6: 운영 수집의 하루 총합 상한 (수집 1회당이 아니라 그날 전체 기준) */
+export const OPERATIONAL_DAILY_LIMIT = 40;
+
+/** PRD 5-1·6: 일회성 백필 수집(운영 쿨다운·상한 미적용)의 상한 */
+export const BACKFILL_LIMIT = 80;
+
+/** PRD 5-1·6: 산업별 우선 목표 — 산업당 최대 이 건수까지 관련도순으로 먼저 채운다 */
+export const INDUSTRY_QUOTA_PER_INDUSTRY = 3;
+
+/** PRD 5-1: 산업 검색으로 들어온 기사가 후보로 남으려면 최소 이 점수 이상이어야 한다 */
+export const MIN_INDUSTRY_SEARCH_SCORE = 3;
+
+/**
+ * PRD 5-1: 관련성 점수제. 규제 키워드 10개 중 1개 이상을 "필수 통과 조건"으로 쓰던
+ * 기존 필터를 없애고, 카테고리별 가중치 합산으로 관련도를 매긴다.
+ * 카테고리 안에서 여러 키워드가 매칭돼도 그 카테고리 점수는 한 번만 더한다
+ * (기존 "매칭된 키워드 종류 수" 방식과 동일한 사고방식).
+ */
+type ScoreCategory = { points: number; keywords: readonly string[] };
+
+const SCORE_CATEGORIES: readonly ScoreCategory[] = [
+  { points: 3, keywords: ['규제', '인허가', '행정처분', '시행규칙'] },
+  { points: 2, keywords: ['허가', '승인', '신고', '등록', '인증', '심사', '기준'] },
+  { points: 2, keywords: ['비용 부담', '지연', '차질', '중단', '진입장벽'] },
+  { points: 2, keywords: ['개선', '완화', '유예', '철회', '건의', '촉구'] },
+  { points: 1, keywords: ['반발', '호소', '우려', '어려움', '불확실성'] },
+  { points: 1, keywords: ['업계', '협회', '기업', '중소기업'] },
+];
+
+/** 제목+발췌문에 매칭되는 카테고리 점수를 모두 더한다 (최대 11점) */
+export function computeRelevanceScore(title: string, description: string): number {
+  const haystack = `${title} ${description}`;
+  return SCORE_CATEGORIES.reduce(
+    (sum, category) =>
+      sum + (category.keywords.some((keyword) => haystack.includes(keyword)) ? category.points : 0),
+    0,
+  );
+}
 
 /** 네이버 응답을 우리 형식으로 정리한 수집 후보 */
 export type Candidate = {
@@ -16,9 +53,14 @@ export type Candidate = {
   publishedAt: string;
   /** 발췌문. 요약 생성에만 쓰고 화면에는 표시하지 않는다 */
   description: string;
-  /** 매칭된 규제 키워드 종류 수 — PRD 5-1의 "관련도" */
-  relevance: number;
+  /** PRD 5-1 관련성 점수제 — 화면에는 표시하지 않고 정렬·필터링에만 쓴다 */
+  score: number;
+  /** PRD 5-3 고정 산업 분류 결과. 수집 시점에 한 번만 계산해 저장 시 그대로 재사용한다 */
+  industries: Industry[];
 };
+
+/** 필터링 단계에서만 쓰는, 검색 출처가 붙은 후보 */
+type CandidateWithSource = Candidate & { source: SearchSource };
 
 /** 네이버 응답의 <b> 강조 태그와 HTML 엔티티를 걷어낸다 */
 function stripHtml(text: string): string {
@@ -47,14 +89,9 @@ function pressFromLink(originallink: string): string {
   }
 }
 
-/** PRD 5-1: 매칭된 규제 키워드의 "종류 수" */
-export function countKeywords(title: string, description: string): number {
-  const haystack = `${title} ${description}`;
-  return REGULATION_KEYWORDS.filter((keyword) => haystack.includes(keyword)).length;
-}
-
-/** 네이버 응답 항목 하나를 수집 후보로 변환한다 */
-export function toCandidate(item: NaverNewsItem): Candidate | null {
+/** 네이버 응답 항목 하나(과 출처)를 수집 후보로 변환한다 */
+function toCandidate(entry: RawNewsEntry): CandidateWithSource | null {
+  const { item, source } = entry;
   const publishedDate = new Date(item.pubDate);
   if (Number.isNaN(publishedDate.getTime())) return null;
 
@@ -67,7 +104,9 @@ export function toCandidate(item: NaverNewsItem): Candidate | null {
     press: pressFromLink(item.originallink || item.link),
     publishedAt: publishedDate.toISOString().slice(0, 10),
     description,
-    relevance: countKeywords(title, description),
+    score: computeRelevanceScore(title, description),
+    industries: classifyIndustriesSafe(title, description),
+    source,
   };
 }
 
@@ -78,18 +117,34 @@ export type FilterOptions = {
   days?: number;
 };
 
+/** 산업 검색발 기사가 관련성 점수·산업 미달로 걸러진 사례 (보고용) */
+export type ExcludedSample = {
+  title: string;
+  source: SearchSource;
+  score: number;
+  industries: Industry[];
+  reason: string;
+};
+
+export type FilterResult = {
+  candidates: Candidate[];
+  /** 보고용 표본. 전체 목록이 아니라 앞에서부터 최대 몇 건만 담는다 */
+  excludedSamples: ExcludedSample[];
+};
+
+const MAX_EXCLUDED_SAMPLES = 8;
+
 /**
- * PRD 5-1의 필터 두 가지를 적용한다.
- *  1. 제목·발췌문에 규제 키워드 10개 중 1개 이상
- *  2. 최근 N일 이내 발행
+ * PRD 5-1 필터를 적용한다.
+ *  1. 최근 N일 이내 발행
+ *  2. 산업 검색으로 들어온 기사는 산업이 하나 이상 분류되고 관련성 점수가
+ *     MIN_INDUSTRY_SEARCH_SCORE 이상이어야 후보로 남는다 (직접 규제 검색 기사는
+ *     검색어 자체가 이미 좁혀져 있어 이 조건을 적용하지 않는다).
  *
- * 같은 기사가 검색어 10개에 중복으로 걸리므로 URL 기준으로 한 번 합친다.
+ * 같은 기사가 여러 검색어에 중복으로 걸리므로 URL 기준으로 한 번 합친다.
  * (제목 유사도 기반 중복 묶기는 PLAN 10번에서 따로 처리한다.)
  */
-export function filterCandidates(
-  items: NaverNewsItem[],
-  options: FilterOptions = {},
-): Candidate[] {
+export function filterCandidates(entries: RawNewsEntry[], options: FilterOptions = {}): FilterResult {
   const now = options.now ?? new Date();
   const days = options.days ?? RECENT_DAYS;
 
@@ -99,30 +154,62 @@ export function filterCandidates(
   const todayDate = now.toISOString().slice(0, 10);
 
   const byUrl = new Map<string, Candidate>();
+  const excludedSamples: ExcludedSample[] = [];
+  const sampledUrls = new Set<string>();
 
-  for (const item of items) {
-    const candidate = toCandidate(item);
+  for (const entry of entries) {
+    const candidate = toCandidate(entry);
     if (!candidate) continue;
-    if (candidate.relevance === 0) continue;
     if (candidate.publishedAt < cutoffDate) continue;
     // 발행일이 미래인 기사는 잘못된 데이터로 보고 버린다
     if (candidate.publishedAt > todayDate) continue;
 
-    if (!byUrl.has(candidate.url)) byUrl.set(candidate.url, candidate);
+    const failsIndustryGate =
+      candidate.source === 'industry' &&
+      (candidate.industries.length === 0 || candidate.score < MIN_INDUSTRY_SEARCH_SCORE);
+
+    if (failsIndustryGate) {
+      if (excludedSamples.length < MAX_EXCLUDED_SAMPLES && !sampledUrls.has(candidate.url)) {
+        sampledUrls.add(candidate.url);
+        excludedSamples.push({
+          title: candidate.title,
+          source: candidate.source,
+          score: candidate.score,
+          industries: candidate.industries,
+          reason:
+            candidate.industries.length === 0
+              ? '산업 미분류'
+              : `관련성 점수 미달 (${candidate.score}점 < ${MIN_INDUSTRY_SEARCH_SCORE}점)`,
+        });
+      }
+      continue;
+    }
+
+    if (!byUrl.has(candidate.url)) {
+      byUrl.set(candidate.url, {
+        url: candidate.url,
+        title: candidate.title,
+        press: candidate.press,
+        publishedAt: candidate.publishedAt,
+        description: candidate.description,
+        score: candidate.score,
+        industries: candidate.industries,
+      });
+    }
   }
 
-  return [...byUrl.values()];
+  return { candidates: [...byUrl.values()], excludedSamples };
 }
 
 /**
- * PRD 5-1: 관련도 높은 순으로 정렬한다.
- * 관련도 = 매칭된 규제 키워드의 종류 수, 동점이면 발행일 최신순.
+ * PRD 5-1: 관련성 점수 높은 순으로 정렬한다. 동점이면 발행일 최신순.
  *
- * 20건으로 자를 때만 이 순서를 쓴다. 화면 목록은 발행일 최신순 고정이다 (PRD 5-2).
+ * 상한으로 자를 때와 산업별 우선 채우기(selectWithIndustryQuota)에 이 순서를 쓴다.
+ * 화면 목록은 발행일 최신순 고정이다 (PRD 5-2).
  */
 export function rankCandidates(candidates: Candidate[]): Candidate[] {
   return [...candidates].sort((a, b) => {
-    if (b.relevance !== a.relevance) return b.relevance - a.relevance;
+    if (b.score !== a.score) return b.score - a.score;
     return b.publishedAt.localeCompare(a.publishedAt);
   });
 }
@@ -164,7 +251,7 @@ export type CandidateGroup = {
  * PRD 5-1: 제목 유사도 0.7 이상이면 같은 사안으로 보고 대표 기사에 묶는다.
  * **지우지 않는다** — 유사도가 빗나가 잘못 묶여도 기사가 사라지지 않게 하기 위해서다.
  *
- * 입력은 관련도순으로 정렬된 상태여야 한다. 앞선 기사가 대표가 된다.
+ * 입력은 관련도순(rankCandidates)으로 정렬된 상태여야 한다. 앞선 기사가 대표가 된다.
  */
 export function groupDuplicates(ranked: Candidate[]): CandidateGroup[] {
   const groups: CandidateGroup[] = [];
@@ -186,6 +273,41 @@ export function groupDuplicates(ranked: Candidate[]): CandidateGroup[] {
 }
 
 /**
+ * PRD 5-1·6: 산업별 우선 목표(산업당 최대 INDUSTRY_QUOTA_PER_INDUSTRY건)를 관련도순으로
+ * 먼저 채우고, 남은 자리는 전체 관련도순으로 채운다. 특정 산업에 맞는 기사가
+ * 부족하면 억지로 채우지 않는다.
+ *
+ * 입력(rankedGroups)은 대표 기사의 점수 기준으로 이미 정렬된 상태여야 한다
+ * (groupDuplicates(rankCandidates(...))의 결과를 그대로 넣는다).
+ */
+export function selectWithIndustryQuota(
+  rankedGroups: CandidateGroup[],
+  limit: number,
+  industryQuota: number = INDUSTRY_QUOTA_PER_INDUSTRY,
+): CandidateGroup[] {
+  const selected = new Set<CandidateGroup>();
+
+  const industriesSeen = new Set<Industry>();
+  for (const group of rankedGroups) {
+    group.representative.industries.forEach((industry) => industriesSeen.add(industry));
+  }
+
+  for (const industry of industriesSeen) {
+    const top = rankedGroups
+      .filter((group) => group.representative.industries.includes(industry))
+      .slice(0, industryQuota);
+    top.forEach((group) => selected.add(group));
+  }
+
+  for (const group of rankedGroups) {
+    if (selected.size >= limit) break;
+    selected.add(group);
+  }
+
+  return rankedGroups.filter((group) => selected.has(group)).slice(0, limit);
+}
+
+/**
  * PRD 5-1: 수집 시점에 원문 링크로 HEAD 요청을 보내 죽은 링크를 걸러낸다.
  *
  * 열람 시점의 삭제까지 막지는 못하지만, 비용 없이 상당수를 거를 수 있다.
@@ -204,3 +326,5 @@ export async function isLinkAlive(url: string, timeoutMs = 5000): Promise<boolea
     return true;
   }
 }
+
+export type { RawNewsEntry, SearchSource };
