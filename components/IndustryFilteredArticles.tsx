@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ArticleCard } from '@/components/ArticleCard';
+import { ArticleDetailDialog, type DetailOrigin } from '@/components/ArticleDetailDialog';
 import { INDUSTRY_FILTER_OPTIONS, type IndustryFilter } from '@/lib/industries';
 import type { ArticleGroup } from '@/types/article';
 
@@ -20,6 +21,39 @@ export function IndustryFilteredArticles({ groups }: Props) {
   const [isVisible, setIsVisible] = useState(true);
   // 값이 바뀔 때마다 컬러 라인 애니메이션을 다시 시작시키기 위한 카운터
   const [flowKey, setFlowKey] = useState(0);
+  // 상세 dialog. 이미 화면에 있는 group을 그대로 넘기므로 추가 조회가 없다
+  const [detail, setDetail] = useState<{ group: ArticleGroup; origin: DetailOrigin } | null>(null);
+  // 상세를 연 카드. 닫을 때 포커스를 되돌린다
+  const detailTriggerRef = useRef<HTMLElement | null>(null);
+  const shouldRestoreFocusRef = useRef(false);
+
+  /**
+   * 포커스 복귀는 dialog가 DOM에서 빠진 뒤에 해야 한다.
+   * native <dialog>가 top layer에 열려 있는 동안에는 바깥 요소로 focus를 옮길 수
+   * 없어, 닫기 핸들러 안에서 바로 부르면 포커스가 body로 떨어진다.
+   */
+  useEffect(() => {
+    if (detail || !shouldRestoreFocusRef.current) return;
+    shouldRestoreFocusRef.current = false;
+
+    // 필터 변경 등으로 원래 카드가 사라졌으면 본문으로 되돌린다
+    const trigger = detailTriggerRef.current;
+    const target = trigger?.isConnected
+      ? trigger
+      : document.querySelector<HTMLElement>('[data-main-content]');
+    target?.focus();
+    detailTriggerRef.current = null;
+  }, [detail]);
+
+  function handleOpenDetail(group: ArticleGroup, origin: DetailOrigin, trigger: HTMLElement) {
+    detailTriggerRef.current = trigger;
+    setDetail({ group, origin });
+  }
+
+  function handleCloseDetail() {
+    shouldRestoreFocusRef.current = true;
+    setDetail(null);
+  }
 
   const filteredGroups =
     selectedIndustry === '전체'
@@ -77,10 +111,23 @@ export function IndustryFilteredArticles({ groups }: Props) {
           </p>
         ) : (
           filteredGroups.map((group) => (
-            <ArticleCard key={group.representative.url} group={group} />
+            <ArticleCard
+              key={group.representative.url}
+              group={group}
+              onOpenDetail={handleOpenDetail}
+            />
           ))
         )}
       </main>
+
+      {detail && (
+        <ArticleDetailDialog
+          key={detail.group.representative.url}
+          group={detail.group}
+          origin={detail.origin}
+          onClose={handleCloseDetail}
+        />
+      )}
     </>
   );
 }

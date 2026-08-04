@@ -28,6 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
+      // 위 인라인 스크립트가 hydration 전에 data-intro-seen을 심으므로 서버 HTML과
+      // 속성이 달라진다. 이 요소의 속성 차이만 눈감아 주지 않으면 매 로드마다
+      // hydration 불일치 오류가 뜬다 (자식 트리 검사는 그대로 유지된다).
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       {/*

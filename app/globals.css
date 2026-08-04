@@ -82,22 +82,24 @@ body {
 @keyframes intro-rise-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(22px) scale(0.96);
+    letter-spacing: 0.04em;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    letter-spacing: 0;
   }
 }
 
 @keyframes intro-button-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: translateY(10px) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -136,52 +138,81 @@ body {
   }
 }
 
-/* 클릭 지점에서 짧게 퍼지는 충격파. 1회만 실행한다 */
-@keyframes intro-impact {
+/*
+ * 1단계(charging) — 버튼을 누른 직후 바로 화면을 덮지 않고 빛이 중앙으로 모인다.
+ * 이 "숨 고르는" 구간이 있어야 뒤따르는 확장이 급해 보이지 않는다.
+ */
+@keyframes intro-charge {
   from {
-    opacity: 0.7;
-    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.4);
   }
   to {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0.7);
   }
 }
 
-/* 1번 웨이브: 파랑→시안, 왼쪽 아래에서 오른쪽 위로 */
+/* 2단계(expanding) — 원이 아니라 유기적인 blob이 천천히 부풀어 오른다 */
+@keyframes intro-expand {
+  from {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(0.1) rotate(-2deg) translateY(8px);
+    border-radius: 46% 54% 50% 50% / 48% 44% 56% 52%;
+  }
+  55% {
+    opacity: 0.86;
+    border-radius: 52% 48% 44% 56% / 54% 50% 50% 46%;
+  }
+  to {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.4) rotate(1deg) translateY(-4px);
+    border-radius: 44% 56% 52% 48% / 46% 42% 58% 54%;
+  }
+}
+
+/*
+ * 3단계(flowing) — 웨이브가 직선으로 스쳐 지나가지 않도록 중간에 한 번 굽이치게
+ * keyframe을 나눴다. 25%·55%·80% 지점에서 방향과 높이가 달라진다.
+ */
 @keyframes intro-sweep-one {
   from {
-    transform: translateX(-110%) translateY(6%) rotate(-6deg) scaleY(0.8);
+    transform: translateX(-105%) translateY(14%) rotate(-5deg) scaleY(0.85);
   }
-  55% {
-    transform: translateX(10%) translateY(0) rotate(-1deg) scaleY(1.25);
+  30% {
+    transform: translateX(-35%) translateY(4%) rotate(-3deg) scaleY(1.1);
+  }
+  60% {
+    transform: translateX(20%) translateY(-2%) rotate(0deg) scaleY(1.18);
   }
   to {
-    transform: translateX(110%) translateY(-4%) rotate(2deg) scaleY(1);
+    transform: translateX(110%) translateY(-8%) rotate(1deg) scaleY(1);
   }
 }
 
-/* 2번 웨이브: 바이올렛→인디고, 반대 방향 */
 @keyframes intro-sweep-two {
   from {
-    transform: translateX(110%) translateY(12%) rotate(5deg) scaleY(0.9);
+    transform: translateX(110%) translateY(-4%) rotate(4deg) scale(0.94);
   }
-  55% {
-    transform: translateX(-8%) translateY(2%) rotate(1deg) scaleY(1.2);
+  35% {
+    transform: translateX(38%) translateY(2%) rotate(2deg) scale(1.04);
+  }
+  65% {
+    transform: translateX(-24%) translateY(6%) rotate(0deg) scale(1.08);
   }
   to {
-    transform: translateX(-110%) translateY(-4%) rotate(-3deg) scaleY(1);
+    transform: translateX(-110%) translateY(8%) rotate(-2deg) scale(1);
   }
 }
 
-/* 3번 스윕: 그린→시안, 아래에서 위로 지나가는 보조 레이어 */
 @keyframes intro-sweep-three {
   from {
-    opacity: 0.5;
+    opacity: 0.35;
     transform: translateY(110%) scaleY(1);
   }
-  50% {
-    opacity: 0.8;
+  45% {
+    opacity: 0.68;
+    transform: translateY(18%) scaleY(1.08);
   }
   to {
     opacity: 0;
@@ -202,6 +233,7 @@ body {
   }
 }
 
+/* 4단계(dissolving) — 텍스트가 갑자기 사라지지 않고 천천히 녹아 없어진다 */
 @keyframes intro-content-out {
   from {
     opacity: 1;
@@ -210,14 +242,19 @@ body {
   }
   to {
     opacity: 0;
-    transform: translateY(-18px) scale(1.08);
-    filter: blur(3px);
+    transform: translateY(-10px) scale(1.035);
+    filter: blur(2px);
   }
 }
 
+/*
+ * 5단계(revealing) — 인트로를 먼저 지우고 메인을 띄우면 화면이 끊긴다.
+ * 70%까지 그대로 두었다가 마지막 구간에서만 사라져, 메인이 떠오르는 동안
+ * 약 420ms 겹쳐 보이게 한다(crossfade).
+ */
 @keyframes intro-overlay-out {
   0%,
-  55% {
+  70% {
     opacity: 1;
   }
   100% {
@@ -249,31 +286,38 @@ html[data-intro-seen='1'] [data-intro-overlay] {
 }
 
 .animate-intro-bg-in {
-  animation: intro-bg-in 600ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: intro-bg-in 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-intro-title {
-  animation: intro-rise-in 420ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+  animation: intro-rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1) 260ms both;
 }
 
 .animate-intro-desc {
-  animation: intro-rise-in 420ms cubic-bezier(0.2, 0, 0, 1) 200ms both;
+  animation: intro-rise-in 470ms cubic-bezier(0.22, 1, 0.36, 1) 370ms both;
 }
 
 .animate-intro-button {
-  animation: intro-button-in 420ms cubic-bezier(0.2, 0, 0, 1) 280ms both;
+  animation: intro-button-in 470ms cubic-bezier(0.22, 1, 0.36, 1) 480ms both;
 }
 
+
+/*
+ * 전환 일정 (총 2,700ms). 하위 단계는 별도 타이머 없이 delay로만 순서를 잡는다.
+ * easing은 초반이 느리고 끝이 완만하게 감속하는 곡선을 쓴다.
+ */
 .animate-intro-content-out {
-  animation: intro-content-out 280ms cubic-bezier(0.2, 0, 0, 1) 120ms both;
+  animation: intro-content-out 500ms cubic-bezier(0.22, 1, 0.36, 1) 1260ms both;
 }
 
 .animate-intro-overlay-out {
-  animation: intro-overlay-out 1250ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: intro-overlay-out 2700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* 메인은 1,900ms부터 떠오른다. 전환 중에는 뒤 화면을 누를 수 없게 막는다 */
 html[data-intro-reveal='1'] [data-main-content] {
-  animation: main-reveal 500ms cubic-bezier(0.2, 0, 0, 1) 620ms both;
+  animation: main-reveal 740ms cubic-bezier(0.22, 1, 0.36, 1) 1900ms both;
+  pointer-events: none;
 }
 
 /* ── 메인 헤더 ───────────────────────────────────────────────── */
@@ -630,6 +674,266 @@ html[data-intro-reveal='1'] [data-main-content] {
   animation: related-line 320ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
+/* ── 카드 클릭: ripple → 출렁임 ─────────────────────────────── */
+
+/* 카드 제목을 감싸는 버튼. 배경 없이 텍스트만 보이되 키보드로 열 수 있다 */
+.card-open-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.card-open-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+/* 1단계: 클릭 좌표에서 퍼지는 ripple. 좌표는 CSS 변수로 받는다 */
+@keyframes card-ripple {
+  from {
+    opacity: 0.45;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.5);
+  }
+}
+
+.card-ripple {
+  position: absolute;
+  left: var(--click-x, 50%);
+  top: var(--click-y, 50%);
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.75), rgba(26, 115, 232, 0.35) 55%, transparent 70%);
+  animation: card-ripple 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * 2단계: 카드 표면의 미세한 출렁임.
+ * 고무처럼 튀지 않도록 scale 변화를 1% 이내로 묶었다. 텍스트는 흔들지 않는다.
+ */
+@keyframes card-wobble {
+  0% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+  30% {
+    transform: scale(1.008, 0.992) rotate(0.2deg);
+  }
+  65% {
+    transform: scale(0.997, 1.004) rotate(-0.15deg);
+  }
+  100% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+}
+
+/* 상태 class를 나눠 hover transform과 클릭 transform이 서로 덮어쓰지 않게 한다 */
+.article-card.is-pressed {
+  transform: scale(0.985);
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.article-card.is-opening {
+  animation: card-wobble 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.article-card.is-opening:hover,
+.article-card.is-pressed:hover {
+  transform: none;
+}
+
+.article-card.is-opening .article-card__image {
+  transform: scale(1.04);
+}
+
+/* ── 기사 상세 dialog ────────────────────────────────────────── */
+
+.detail-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: 100vw;
+  max-height: 100dvh;
+  overflow: visible;
+}
+
+.detail-dialog::backdrop {
+  background: rgba(11, 16, 32, 0.58);
+  backdrop-filter: blur(6px);
+  animation: detail-overlay-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes detail-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 클릭 지점 주변에만 컬러가 번지는 overlay */
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--click-x, 50%) var(--click-y, 50%),
+    rgba(34, 211, 238, 0.16),
+    transparent 34%
+  );
+  animation: detail-overlay-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * 카드 위치·크기에서 패널로 확장한다.
+ * 카드와 패널의 좌표 차이를 CSS 변수로 받아 translate·scale로만 움직인다 —
+ * width/height를 애니메이션하면 매 프레임 레이아웃이 다시 계산된다.
+ */
+@keyframes detail-panel-in {
+  from {
+    opacity: 0.4;
+    transform: translate(var(--origin-x, 0), var(--origin-y, 0)) scale(var(--origin-scale, 0.8));
+    border-radius: 16px;
+  }
+  55% {
+    opacity: 1;
+    border-radius: 32px;
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    border-radius: 24px;
+  }
+}
+
+@keyframes detail-panel-out {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--origin-x, 0), var(--origin-y, 0)) scale(0.985);
+  }
+}
+
+.detail-panel {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(79, 70, 229, 0.14);
+  box-shadow:
+    0 24px 60px rgba(11, 16, 32, 0.28),
+    0 2px 8px rgba(11, 16, 32, 0.12);
+  animation: detail-panel-in 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.6),
+    rgba(124, 58, 237, 0.55),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+.detail-dialog.is-closing .detail-panel {
+  animation: detail-panel-out 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-dialog.is-closing::backdrop {
+  animation: detail-overlay-in 420ms cubic-bezier(0.22, 1, 0.36, 1) reverse both;
+}
+
+/* 패널이 열린 뒤 내부 정보가 차례로 올라온다 (총 지연 300ms 이내) */
+@keyframes detail-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-item {
+  animation: detail-item-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * 항목들이 서로 다른 부모에 흩어져 있어 nth-child로는 순서가 어긋난다.
+ * 이미지 → 언론사·날짜·점수 → 요약 → 원문 버튼 → 관련 기사 순으로 지연을 고정한다.
+ * 패널 확장보다 140ms 늦게 시작하고, 항목 사이 간격은 55ms(전체 275ms)로 둔다.
+ */
+.detail-item--1 {
+  animation-delay: 140ms;
+}
+.detail-item--2 {
+  animation-delay: 195ms;
+}
+.detail-item--3 {
+  animation-delay: 250ms;
+}
+.detail-item--4 {
+  animation-delay: 305ms;
+}
+.detail-item--5 {
+  animation-delay: 360ms;
+}
+.detail-item--6 {
+  animation-delay: 415ms;
+}
+
+/* 관련 기사로 넘어갈 때 패널을 닫지 않고 안쪽 내용만 바꾼다 */
+@keyframes detail-swap-line {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.detail-swap-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  width: 100%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--motion-cyan), var(--motion-blue), transparent);
+  animation: detail-swap-line 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-body.is-swapping {
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.detail-summary {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.05), rgba(255, 255, 255, 0));
+  border: 1px solid rgba(26, 115, 232, 0.16);
+}
+
 /* ── 빈 목록 안내 패널 ───────────────────────────────────────── */
 
 @keyframes empty-panel-in {
@@ -692,7 +996,17 @@ html[data-intro-reveal='1'] [data-main-content] {
   background: linear-gradient(100deg, rgba(52, 168, 83, 0.22), rgba(26, 115, 232, 0.26));
   opacity: 0.14;
   border-radius: 48% 52% 56% 44% / 50% 54% 46% 50%;
-  animation: wave-drift-three 9s ease-in-out infinite;
+  animation: wave-drift-three 13s ease-in-out infinite;
+}
+
+/*
+ * 모바일은 레이어 수를 줄인다. 화면이 좁아 세 층이 겹쳐도 차이가 잘 보이지 않는데,
+ * 대형 blob이 매 프레임 합성되는 비용만 남는다.
+ */
+@media (max-width: 639px) {
+  .intro-wave--3 {
+    display: none;
+  }
 }
 
 /* 아주 옅은 데이터 격자 — 정지 상태로 깊이감만 준다 */
@@ -722,17 +1036,29 @@ html[data-intro-reveal='1'] [data-main-content] {
 
 /* ── 클릭 후 전환 레이어 ─────────────────────────────────────── */
 
-.intro-impact {
+/* 1단계: 버튼 뒤로 빛이 응축된다 */
+.intro-charge {
   position: absolute;
   left: 50%;
   top: 62%;
-  width: 22rem;
-  height: 22rem;
-  margin: -11rem 0 0 -11rem;
+  width: 26rem;
+  height: 26rem;
   border-radius: 9999px;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.75), rgba(26, 115, 232, 0.35) 55%, transparent 70%);
-  animation: intro-impact 220ms cubic-bezier(0.2, 0, 0, 1) both;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.7), rgba(26, 115, 232, 0.3) 55%, transparent 70%);
+  animation: intro-charge 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 2단계: 응축된 빛이 유체 형태로 부풀어 오른다 */
+.intro-expand {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 70vmax;
+  height: 70vmax;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.85), rgba(26, 115, 232, 0.6) 58%, rgba(79, 70, 229, 0.35) 100%);
+  animation: intro-expand 640ms cubic-bezier(0.22, 1, 0.36, 1) 340ms both;
 }
 
 .intro-sweep {
@@ -746,16 +1072,17 @@ html[data-intro-reveal='1'] [data-main-content] {
   will-change: transform;
 }
 
+/* 3단계: 세 웨이브가 서로 다른 방향·속도로 굽이치며 교차한다 (760ms~1,700ms) */
 .intro-sweep--one {
   background: linear-gradient(115deg, var(--motion-blue), var(--motion-cyan));
   opacity: 0.9;
-  animation: intro-sweep-one 480ms cubic-bezier(0.2, 0, 0, 1) 60ms both;
+  animation: intro-sweep-one 940ms cubic-bezier(0.22, 1, 0.36, 1) 760ms both;
 }
 
 .intro-sweep--two {
   background: linear-gradient(115deg, var(--motion-violet), var(--motion-indigo));
   opacity: 0.85;
-  animation: intro-sweep-two 520ms cubic-bezier(0.2, 0, 0, 1) 170ms both;
+  animation: intro-sweep-two 900ms cubic-bezier(0.22, 1, 0.36, 1) 910ms both;
 }
 
 .intro-sweep--three {
@@ -764,8 +1091,8 @@ html[data-intro-reveal='1'] [data-main-content] {
   width: 100%;
   height: 100%;
   border-radius: 0;
-  background: linear-gradient(0deg, rgba(52, 168, 83, 0.55), rgba(34, 211, 238, 0.5));
-  animation: intro-sweep-three 450ms cubic-bezier(0.2, 0, 0, 1) 300ms both;
+  background: linear-gradient(0deg, rgba(52, 168, 83, 0.5), rgba(34, 211, 238, 0.45));
+  animation: intro-sweep-three 860ms cubic-bezier(0.22, 1, 0.36, 1) 1050ms both;
 }
 
 /* ── 시작 버튼 ───────────────────────────────────────────────── */
@@ -796,6 +1123,16 @@ html[data-intro-reveal='1'] [data-main-content] {
 .intro-start-button:active:not(:disabled) {
   transform: scale(0.96);
   transition-duration: 140ms;
+}
+
+/* 1단계: 눌린 상태를 유지한 채 gradient가 중앙으로 모이고 그림자가 수축한다 */
+.intro-start-button.is-charging {
+  transform: scale(0.94);
+  background-position: 50% 0%;
+  box-shadow:
+    0 2px 8px rgba(26, 115, 232, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transition-duration: 340ms;
 }
 
 /* 등장 직후 한 번만 지나가는 빛줄기. 반복하지 않는다 */
@@ -833,7 +1170,7 @@ html[data-intro-reveal='1'] [data-main-content] {
   pointer-events: none;
   border-radius: 9999px;
   background: radial-gradient(circle, rgba(124, 58, 237, 0.5), rgba(34, 211, 238, 0.28) 50%, transparent 70%);
-  animation: intro-bloom 420ms ease-in-out 220ms both;
+  animation: intro-bloom 760ms ease-in-out 1000ms both;
 }
 
 /*
@@ -883,7 +1220,6 @@ html[data-intro-reveal='1'] [data-main-content] {
   .intro-wave,
   .intro-sweep,
   .intro-bloom,
-  .intro-impact,
   .intro-start-button::after,
   .article-card__sheen,
   .filter-flow-line,
@@ -893,7 +1229,6 @@ html[data-intro-reveal='1'] [data-main-content] {
 
   .intro-sweep,
   .intro-bloom,
-  .intro-impact,
   .article-card__sheen,
   .filter-flow-line,
   .related-line {
@@ -928,6 +1263,44 @@ html[data-intro-reveal='1'] [data-main-content] {
   .animate-header-in,
   .empty-panel {
     animation: intro-simple-in 180ms linear both !important;
+  }
+
+  /* 인트로 1~3단계 레이어는 아예 쓰지 않는다 (전역 규칙만으로는 남아 보인다) */
+  .intro-charge,
+  .intro-expand {
+    display: none !important;
+  }
+
+  /*
+   * 기사 상세: 클릭 ripple과 카드 출렁임을 없애고, 패널은 제자리에서 나타난다.
+   * 상태 변경·focus 이동·스크롤 잠금은 그대로 동작해야 하므로 요소 자체는 남긴다.
+   */
+  .card-ripple,
+  .detail-swap-line {
+    display: none !important;
+  }
+
+  .article-card.is-opening,
+  .article-card.is-pressed {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .article-card.is-opening .article-card__image {
+    transform: none !important;
+  }
+
+  .detail-panel {
+    animation: intro-simple-in 200ms linear both !important;
+  }
+
+  .detail-dialog.is-closing .detail-panel {
+    animation: intro-simple-out 200ms linear both !important;
+  }
+
+  .detail-item {
+    animation: intro-simple-in 200ms linear both !important;
+    animation-delay: 0ms !important;
   }
 }
 

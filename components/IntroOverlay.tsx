@@ -7,28 +7,41 @@ const INTRO_STORAGE_KEY = 'business-monitor-intro-seen';
 
 /**
  * 진입 애니메이션 총 길이(ms).
- * 충격파 → 웨이브 1·2 → 컬러 스윕 → 메인 공개까지 포함한다.
- * PRD: 버튼 클릭부터 메인 화면이 완전히 보일 때까지 1.0~1.4초 안에 끝낸다.
- *
- * 하위 단계는 별도 타이머 없이 CSS animation-delay로 순서를 잡는다 —
- * 타이머를 여러 개 두면 어긋날 여지만 늘고, 실제로 필요한 것은 "언제 끝나는가"뿐이다.
+ * PRD: 버튼 클릭부터 메인 화면이 완전히 안정될 때까지 2.4~3.0초에 걸쳐 진행한다.
  */
-const EXIT_DURATION_MS = 1250;
+const EXIT_DURATION_MS = 2700;
 
 /**
- * 전환 단계. 실제 순서 제어는 CSS가 하고, 컴포넌트는 이 흐름을 하나의 상태로만 들고 있는다.
- *   impact(0ms) → wave-one(60ms) → wave-two(170ms) → sweep(300ms) → reveal(620ms)
+ * 전환 단계. boolean 여러 개 대신 이 값 하나로만 관리한다.
+ * 각 레이어의 실제 움직임은 CSS animation-delay가 맡고, 이 상태는 같은 일정을
+ * 컴포넌트 쪽에서도 알 수 있게 하는 단일 진행 표시다.
  */
 export type IntroTransitionPhase =
   | 'idle'
-  | 'impact'
-  | 'wave-one'
-  | 'wave-two'
-  | 'reveal'
+  | 'charging'
+  | 'expanding'
+  | 'flowing'
+  | 'dissolving'
+  | 'revealing'
   | 'complete';
 
+/**
+ * 단계 일정. 타이머를 여기 한 곳에서만 만들어 어긋날 여지를 없앤다.
+ * (charging은 클릭 즉시 시작하므로 0ms 항목을 따로 두지 않는다)
+ */
+const PHASE_SCHEDULE: ReadonlyArray<{ phase: IntroTransitionPhase; at: number }> = [
+  { phase: 'expanding', at: 340 },
+  { phase: 'flowing', at: 760 },
+  { phase: 'dissolving', at: 1260 },
+  { phase: 'revealing', at: 1900 },
+  { phase: 'complete', at: EXIT_DURATION_MS },
+];
+
 /** 동작 줄이기 환경에서는 단순 fade만 하므로 훨씬 짧게 끝낸다 */
-const REDUCED_EXIT_DURATION_MS = 180;
+const REDUCED_EXIT_DURATION_MS = 220;
+const REDUCED_PHASE_SCHEDULE: ReadonlyArray<{ phase: IntroTransitionPhase; at: number }> = [
+  { phase: 'complete', at: REDUCED_EXIT_DURATION_MS },
+];
 
 type IntroState = 'checking' | 'visible' | 'exiting' | 'hidden';
 
@@ -72,16 +85,18 @@ export function IntroOverlay() {
     readIntroSeen,
     readIntroSeenOnServer,
   );
-  const [phase, setPhase] = useState<'idle' | 'exiting' | 'done'>('idle');
+  const [phase, setPhase] = useState<IntroTransitionPhase>('idle');
   const timersRef = useRef<number[]>([]);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // 클릭 후에는 introSeen이 true로 바뀌어도 전환 애니메이션을 끝까지 보여준다
   const state: IntroState =
-    phase === 'done' || (introSeen && phase === 'idle')
+    phase === 'complete' || (introSeen && phase === 'idle')
       ? 'hidden'
-      : phase === 'exiting'
-        ? 'exiting'
-        : 'visible';
+      : phase === 'idle'
+        ? 'visible'
+        : 'exiting';
 
   // 인트로가 떠 있는 동안에는 뒤 화면이 스크롤되지 않게 막는다
   useEffect(() => {
@@ -111,20 +126,49 @@ export function IntroOverlay() {
       // 저장에 실패해도 이번 진입은 그대로 진행한다
     }
 
-    setPhase('exiting');
+    setPhase('charging');
     // 뒤에 있던 메인 화면이 확대에서 제자리로 돌아오며 드러나게 한다
     document.documentElement.setAttribute('data-intro-reveal', '1');
 
-    const duration = prefersReducedMotion() ? REDUCED_EXIT_DURATION_MS : EXIT_DURATION_MS;
+    const schedule = prefersReducedMotion() ? REDUCED_PHASE_SCHEDULE : PHASE_SCHEDULE;
 
-    const hideTimer = window.setTimeout(() => {
-      setPhase('done');
-      document.documentElement.removeAttribute('data-intro-reveal');
-      // 오버레이가 사라진 뒤 포커스를 본문으로 옮겨 키보드 흐름이 끊기지 않게 한다
-      document.querySelector<HTMLElement>('[data-main-content]')?.focus();
-    }, duration);
+    schedule.forEach(({ phase: next, at }) => {
+      timersRef.current.push(
+        window.setTimeout(() => {
+          setPhase(next);
+          if (next !== 'complete') return;
 
-    timersRef.current.push(hideTimer);
+          document.documentElement.removeAttribute('data-intro-reveal');
+          // 오버레이가 사라진 뒤 포커스를 본문으로 옮겨 키보드 흐름이 끊기지 않게 한다
+          document.querySelector<HTMLElement>('[data-main-content]')?.focus();
+        }, at),
+      );
+    });
+  }, [state]);
+
+  /**
+   * 인트로가 떠 있는 동안 Tab이 뒤 화면으로 새지 않게 잡아 둔다.
+   * 오버레이 안에서 초점을 받을 수 있는 것은 시작 버튼 하나뿐이라, 마운트 시점에
+   * 포커스를 강제로 옮기지 않고 Tab을 눌렀을 때만 그 버튼으로 되돌린다.
+   */
+  useEffect(() => {
+    if (state !== 'visible') return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      buttonRef.current?.focus();
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [state]);
+
+  // 전환이 시작되면 오버레이 안쪽 포커스를 놓아 준다 (버튼이 곧 사라진다)
+  useEffect(() => {
+    if (state !== 'exiting') return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && overlayRef.current?.contains(active)) active.blur();
   }, [state]);
 
   // 인트로를 끝냈으면 DOM에서 완전히 빼서 스크롤·클릭을 방해하지 않는다
@@ -134,7 +178,9 @@ export function IntroOverlay() {
 
   return (
     <div
+      ref={overlayRef}
       data-intro-overlay
+      data-intro-phase={phase}
       role="dialog"
       aria-modal="true"
       aria-label="기업 환경 모니터링 시작"
@@ -152,7 +198,8 @@ export function IntroOverlay() {
       {/* 전환 레이어. 클릭한 뒤에만 DOM에 올라오고, 끝나면 오버레이째 제거된다 */}
       {isExiting && (
         <>
-          <span aria-hidden="true" className="intro-impact" />
+          <span aria-hidden="true" className="intro-charge" />
+          <span aria-hidden="true" className="intro-expand" />
           <div aria-hidden="true" className="intro-sweep intro-sweep--one" />
           <div aria-hidden="true" className="intro-sweep intro-sweep--two" />
           <div aria-hidden="true" className="intro-bloom" />
@@ -180,10 +227,13 @@ export function IntroOverlay() {
         </p>
 
         <button
+          ref={buttonRef}
           type="button"
           onClick={handleStart}
           disabled={isExiting}
-          className="intro-start-button animate-intro-button mt-9 h-[54px] rounded-2xl px-8 text-[15px] font-medium text-white disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2"
+          className={`intro-start-button animate-intro-button mt-9 h-[54px] rounded-2xl px-8 text-[15px] font-medium text-white disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2 ${
+            isExiting ? 'is-charging' : ''
+          }`}
         >
           모니터링 시작
         </button>
