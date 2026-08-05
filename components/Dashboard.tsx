@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AgentEntryButton } from '@/components/AgentEntryButton';
+import { AgentPanel } from '@/components/AgentPanel';
 import { ArticleCard } from '@/components/ArticleCard';
 import { ArticleDetailDialog, type DetailOrigin } from '@/components/ArticleDetailDialog';
 import { CommandCenter } from '@/components/CommandCenter';
@@ -47,6 +49,8 @@ export function Dashboard({ groups, lastSuccessAt, totalArticles, collectedToday
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const agentEntryButtonRef = useRef<HTMLButtonElement>(null);
   const [trendDays, setTrendDays] = useState(7);
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<{ group: EnrichedGroup; origin: DetailOrigin } | null>(null);
@@ -531,6 +535,20 @@ export function Dashboard({ groups, lastSuccessAt, totalArticles, collectedToday
           onClose={handleCloseDetail}
         />
       )}
+
+      <AgentEntryButton
+        ref={agentEntryButtonRef}
+        onClick={() => setAgentOpen(true)}
+        liftForActionBar={selected.length > 0 || personal.report.length > 0}
+      />
+      <AgentPanel
+        open={agentOpen}
+        onClose={() => {
+          setAgentOpen(false);
+          agentEntryButtonRef.current?.focus();
+        }}
+        currentIndustryScope={filters.industries}
+      />
     </>
   );
 }

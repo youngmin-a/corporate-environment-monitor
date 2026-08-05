@@ -155,6 +155,53 @@ export async function saveArticles(rows: ArticleInsert[]): Promise<number> {
 }
 
 /**
+ * AI 분석관 검색용 전체 후보 조회 (DESIGN.md 6장).
+ *
+ * `getRecentArticleGroups()`와 달리 최근 7일·상위 30건 제한을 두지 않는다 —
+ * 사용자가 "지난달"·"특정 기업 시간순" 같은 질문을 하면 화면 목록보다 넓은 범위를
+ * 뒤져야 하기 때문이다. 다만 연관성 60점 미만은 여기서도 걸러낸다 — 이 서비스가
+ * "기업 규제·애로 연관성"을 정의하는 최소 기준이지, 화면 노출용으로만 정한 값이
+ * 아니기 때문이다(사용자 질문으로도 이 기준 아래로는 내려가지 않는다).
+ *
+ * limit은 안전장치일 뿐 사실상 전체 조회다 — 지금 규모(수백 건)에서는 이렇게 한
+ * 번에 가져와 메모리에서 점수를 매기는 편이 벡터 인덱스보다 단순하고 충분히
+ * 빠르다. 데이터가 수만 건 규모로 커지면 이 함수부터 페이지네이션이 필요하다.
+ */
+export async function getAllArticleGroupsForSearch(limit = 1000): Promise<ArticleGroup[]> {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .is('group_id', null)
+    .gte('relevance_score', MIN_RELEVANCE_SCORE)
+    .order('relevance_score', { ascending: false })
+    .order('published_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const representatives = (data ?? []).map(toArticle);
+  if (representatives.length === 0) return [];
+
+  const { data: relatedData, error: relatedError } = await supabase
+    .from('articles')
+    .select('*')
+    .in(
+      'group_id',
+      representatives.map((item) => item.url),
+    )
+    .order('published_at', { ascending: false });
+
+  if (relatedError) throw relatedError;
+
+  const related = (relatedData ?? []).map(toArticle);
+
+  return representatives.map((representative) => ({
+    representative,
+    related: related.filter((row) => row.groupId === representative.url),
+  }));
+}
+
+/**
  * 대시보드 상단 지표용 집계 (DESIGN.md 3-2).
  *
  * 화면에 내려온 30건만으로는 알 수 없는 "전체 규모"만 서버에서 센다. head 조회로

@@ -421,3 +421,57 @@ opacity 0→1 · translateY 6px→0으로 260ms 동안 나타난다. 타이핑·
 `reports/nightly/YYYY-MM-DD.md`에 실행 정보·검사 결과 표·발견된 문제(심각도순)·
 전일 대비 변화를 남기고, `reports/quality-baseline.json`에 기준선을 저장한다.
 이 정보는 **일반 사용자 화면에 노출하지 않는다** — CI artifact와 저장소 파일로만 본다.
+
+---
+
+## 6. 기업환경 AI 분석관 (2026-08-05)
+
+### 6-1. 화면 진입점
+
+우측 하단 고정 버튼(`components/AgentEntryButton.tsx`)으로 연다. 별도 route가
+아니라 `components/AgentPanel.tsx`가 `<dialog>`를 열어 데스크톱은 오른쪽 drawer
+(440px), 모바일은 하단 시트로 보여준다 — 기존 `FilterDrawer`/`ReportPanel`의
+`.filter-dialog`/`.filter-drawer` 클래스 계열을 그대로 확장했다.
+
+다중 선택 시 뜨는 하단 action-bar와 겹치지 않도록, 그 bar가 보이는 동안
+`AgentEntryButton`은 위로 올라간다(`is-lifted`).
+
+### 6-2. 서버 파이프라인
+
+```
+사용자 메시지
+  → 슬래시 명령어 파싱 (lib/agentCommands.ts)
+  → 질문 분석 LLM (lib/agentQuery.ts, 실패해도 원문 질문으로 계속 진행)
+  → 하이브리드 검색 (lib/agentSearch.ts: 키워드+동의어+메타데이터+점수+최신성)
+  → 근거 0건이면 답변 생성 없이 종료
+  → 근거 있으면 스트리밍 답변 생성 (lib/agentPrompt.ts 시스템 프롬프트)
+  → 실제 인용된 출처만 추출, 후속 질문 생성 (lib/suggestedPrompts.ts)
+```
+
+스트리밍은 `data: <JSON>\n\n` 자체 프레이밍이다(`app/api/agent/chat/route.ts`,
+`lib/agentClient.ts`) — 새 스트리밍 라이브러리를 추가하지 않았다.
+
+### 6-3. 서버/클라이언트 경계
+
+Supabase·OpenAI를 부르는 `lib/agentSearch.ts`·`lib/agentQuery.ts`·`lib/agentPrompt.ts`·
+`lib/articles.ts`는 **클라이언트 컴포넌트에서 런타임 import하지 않는다.** 클라이언트는
+`lib/agentClient.ts`(fetch 기반)·`lib/agentCommands.ts`·`lib/agentPresetChips.ts`·
+`types/agent.ts`(타입 전용)만 쓴다.
+
+### 6-4. 상세 dialog 연결
+
+인용 번호나 출처 카드를 누르면 기존 `ArticleDetailDialog`를 그대로 연다(별도
+구현 없음). 상세 화면에 필요한 전체 데이터(`EnrichedGroup`)는 채팅 응답의
+`sourceGroups`에 이미 포함돼 있어 추가 요청이 없다. native `<dialog>`는
+`showModal()`끼리 중첩돼도(분석 패널 위에 상세 dialog) 각자 top layer에서
+독립적으로 focus trap·Escape를 처리한다 — 별도 inert 관리를 추가하지 않았다.
+
+닫기(버튼·backdrop·Escape)는 dialog가 실제로 닫힌 뒤에만 진입 버튼으로 focus를
+되돌린다 — 열려 있는 동안 바깥 요소로 focus를 옮기면 브라우저가 막기 때문에,
+`dialog.close()` 호출 뒤 다음 tick(setTimeout 0)에서 focus를 옮긴다.
+
+### 6-5. reduced-motion
+
+패널 진입/메시지 등장/출처 카드/추천 질문 stagger는 `prefers-reduced-motion`에서
+모두 짧은 opacity 전환으로 대체한다. 기능(전송·스트리밍·인용 클릭·필터 chip)은
+그대로 동작한다.

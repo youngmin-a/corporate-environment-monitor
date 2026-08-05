@@ -226,3 +226,44 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 
 - Vercel Cron(`vercel.json`) 미등록 → 자동 수집이 예약돼 있지 않다.
 - 기사 데이터에 issueType·evidenceType 등을 저장하는 컬럼(현재는 조회 시 계산).
+
+## 기업환경 AI 분석관 (2026-08-05, 사용자 요청)
+
+1. 현재 구조 조사 — `Article`/`EnrichedArticle` 타입, `lib/classification.ts`가
+   이미 이슈유형·근거유형·기업/기관/협회를 계산하고 있음을 확인. 새 컬럼 없이
+   재사용하기로 결정.
+2. 검색 계층: `lib/agentSynonyms.ts`(동의어·인접산업) → `lib/agentSearch.ts`
+   (하이브리드 스코어링, 정밀→동의어→기간→인접산업 단계적 확장).
+3. 질문 분석: `lib/agentQuery.ts` (json_schema strict, 실패 시 원문 질문 fallback).
+4. 프롬프트: `lib/agentPrompt.ts` (시스템 프롬프트, CONTEXT 블록, 인용 추출,
+   근거부족 안내문).
+5. 서버 API: `app/api/agent/chat/route.ts`(스트리밍) ·
+   `app/api/agent/suggestions/route.ts`(LLM 없는 규칙 기반 추천).
+6. UI: `components/AgentEntryButton.tsx` · `AgentPanel.tsx` · `AgentMessage.tsx` ·
+   `AgentSourceCard.tsx` · `AgentSuggestedPrompts.tsx` · `AgentCommandAutocomplete.tsx`.
+7. 접근성·모션·반응형 확인 (360/768/1024/1440px, reduced-motion).
+8. 빌드·타입·린트 검증.
+
+### 데이터 변경
+
+- 신규 컬럼 없음. `types/agent.ts`에 순수 타입만 추가.
+- 마이그레이션 없음.
+
+### 발견해서 함께 고친 것
+
+- `AgentPanel`의 추천/후속 질문 클릭 시 `sendMessage`가 아직 갱신되지 않은
+  `activePreset`을 클로저로 참조해 조건이 한 턴 늦게 반영되던 버그 — override를
+  직접 합쳐서 계산하도록 수정.
+- `AgentPanel` 닫기 시 원래 열려 있던 native `<dialog>`가 아직 top layer에 있는
+  동안 진입 버튼에 focus를 옮기려다 실패하던 문제 — `dialog.close()` 호출 뒤
+  다음 tick에서 focus를 옮기도록 수정.
+
+### 완료하지 못한 것 / 추가 확인 필요
+
+- 완료 기준 "근거가 없으면 답변을 생성하지 않는다"는 **완전히 충족되지 않았다.**
+  검색이 느슨한 일반 단어(예: "규제") 일치만으로도 후보를 반환할 수 있어, 상당수
+  비관련 질문에서도 모델 호출까지 진행된다. 다만 모델이 근거 부족을 스스로
+  인지하고 사실을 지어내지 않는 2차 방어선은 실제 테스트로 확인했다.
+- Escape 키의 실제 브라우저 동작은 이번 세션의 자동화 도구(CDP) 제약으로 직접
+  검증하지 못했다 — 같은 `<dialog>` 패턴을 쓰는 기존 `FilterDrawer`도 동일한
+  제약을 보여 환경 문제로 판단했다.
