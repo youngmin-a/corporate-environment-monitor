@@ -216,14 +216,15 @@ export function ArticleCard({
         onClick={handleCardClick}
         className={`compact-row ${isRead ? 'is-read' : ''} ${isSelected ? 'is-selected' : ''}`}
       >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onClick={stopCardOpen}
-          onChange={() => onToggleSelect(representative.url)}
-          aria-label={`${representative.title} 선택`}
-          className="compact-row__check"
-        />
+        <label className="compact-row__check-wrap" onClick={stopCardOpen}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(representative.url)}
+            aria-label={`${representative.title} 선택`}
+            className="select-checkbox"
+          />
+        </label>
         <div className="min-w-0 flex-1">
           <button
             ref={openButtonRef}
@@ -320,6 +321,7 @@ export function ArticleCard({
             checked={isSelected}
             onChange={() => onToggleSelect(representative.url)}
             aria-label={`${representative.title} 선택`}
+            className="select-checkbox"
           />
         </label>
 

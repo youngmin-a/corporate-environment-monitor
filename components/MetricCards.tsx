@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { DashboardFilters, Metric } from '@/lib/dashboard';
 
@@ -64,6 +65,21 @@ function MetricCard({
       <span className="metric-card__hint">{metric.hint}</span>
     </>
   );
+
+  if (metric.href) {
+    return (
+      <Link
+        href={metric.href}
+        aria-label={`${metric.label} ${metric.value.toLocaleString()}건 보기`}
+        className="metric-card metric-card--link"
+      >
+        {content}
+        <span aria-hidden="true" className="metric-card__cta">
+          전체 보기 →
+        </span>
+      </Link>
+    );
+  }
 
   if (!clickable) {
     return (

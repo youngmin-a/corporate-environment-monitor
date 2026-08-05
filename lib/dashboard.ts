@@ -346,6 +346,8 @@ export type Metric = {
   hint: string;
   /** 클릭 시 적용할 필터 (없으면 클릭 불가) */
   filters?: Partial<DashboardFilters>;
+  /** 클릭 시 이동할 경로. filters와 배타적이며, 있으면 카드가 링크로 렌더링된다 */
+  href?: string;
   /** 0~1. 막대 길이로만 쓰고 없는 값은 만들지 않는다 */
   ratio?: number;
 };
@@ -385,7 +387,8 @@ export function buildMetrics({
       id: 'total',
       label: '저장된 기사',
       value: totalArticles,
-      hint: '지금까지 저장한 대표 기사 전체',
+      hint: '지금까지 저장한 대표 기사 전체 · 전체 목록 열기',
+      href: '/articles',
     },
     {
       id: 'today',

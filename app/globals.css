@@ -371,6 +371,17 @@ html[data-intro-reveal='1'] [data-main-content] {
   animation: header-in 460ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
+/* 재정경제부 로고. 장식 효과 없이 원본 비율만 유지하는 기관 식별 요소다 */
+.header-agency-logo {
+  max-width: 150px;
+}
+
+@media (min-width: 640px) {
+  .header-agency-logo {
+    max-width: 190px;
+  }
+}
+
 .refresh-button {
   background: linear-gradient(110deg, #1a73e8 0%, #4f46e5 100%);
   background-size: 160% 100%;
@@ -1060,6 +1071,24 @@ html[data-intro-reveal='1'] [data-main-content] {
   color: #80868b;
 }
 
+/* "저장된 기사" 카드 → 전체 기사 화면으로 가는 링크. hover에서만 문구를 뚜렷하게 한다 */
+.metric-card--link {
+  text-decoration: none;
+}
+
+.metric-card__cta {
+  margin-top: 0.15rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a73e8;
+  opacity: 0.55;
+  transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.metric-card--link:hover .metric-card__cta {
+  opacity: 1;
+}
+
 /* ── 이슈 분석 스트립 ────────────────────────────────────────── */
 
 .insight-strip {
@@ -1202,6 +1231,57 @@ html[data-intro-reveal='1'] [data-main-content] {
   font-size: 11px;
   line-height: 18px;
   text-align: center;
+}
+
+/* ── 전체 기사 pagination ────────────────────────────────────── */
+
+.pager-button {
+  display: inline-flex;
+  min-width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  color: #202124;
+  transition:
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pager-button:hover {
+  border-color: rgba(26, 115, 232, 0.45);
+  background: rgba(26, 115, 232, 0.06);
+}
+
+.pager-button:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.pager-button.is-current {
+  border-color: #1a73e8;
+  background: linear-gradient(120deg, #1a73e8, #4f46e5);
+  color: #fff;
+  font-weight: 600;
+}
+
+.pager-button.is-disabled {
+  border-color: rgba(100, 116, 139, 0.16);
+  color: #9aa0a6;
+  cursor: not-allowed;
+}
+
+.pager-ellipsis {
+  display: inline-flex;
+  min-width: 24px;
+  align-items: center;
+  justify-content: center;
+  color: #9aa0a6;
 }
 
 .quick-chip,
@@ -1402,23 +1482,124 @@ html[data-intro-reveal='1'] [data-main-content] {
 
 .card-select {
   position: absolute;
-  left: 0.75rem;
-  top: 0.75rem;
+  left: 0.5rem;
+  top: 0.5rem;
   z-index: 3;
   display: flex;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(4px);
 }
 
-.card-select input {
-  width: 16px;
-  height: 16px;
-  accent-color: #1a73e8;
+/* ── 선택 체크박스 (카드·압축 목록 공통) ───────────────────────────
+ * native input을 그대로 쓰되 appearance를 없애고 직접 그린다.
+ * 미선택 상태도 카드 배경과 명확히 구분되도록 테두리·이중 그림자를 준다.
+ */
+.select-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid rgba(71, 85, 105, 0.55);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition:
+    border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 180ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.select-checkbox:hover {
+  border-color: rgba(26, 115, 232, 0.65);
+  background: rgba(26, 115, 232, 0.06);
+  box-shadow:
+    0 2px 6px rgba(26, 115, 232, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.select-checkbox:checked {
+  border-color: #1a73e8;
+  background: linear-gradient(135deg, #1a73e8, #4f46e5);
+  animation: select-checkbox-pop 160ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.select-checkbox:checked:hover {
+  box-shadow:
+    0 2px 8px rgba(26, 115, 232, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.select-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+  animation: select-checkbox-check-in 140ms cubic-bezier(0.2, 0, 0, 1) 20ms both;
+}
+
+.select-checkbox:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.25);
+}
+
+.select-checkbox:disabled {
+  cursor: not-allowed;
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: none;
+}
+
+@keyframes select-checkbox-pop {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes select-checkbox-check-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 압축 목록의 체크박스는 흰 배경 위에 놓이므로 카드용과 같은 클릭 영역 확보용 wrapper를 쓴다 */
+.compact-row__check-wrap {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -4px -8px -6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.compact-row__check-wrap:hover {
+  background: rgba(26, 115, 232, 0.06);
 }
 
 .card-badges {
@@ -1639,16 +1820,6 @@ html[data-intro-reveal='1'] [data-main-content] {
     height: 44px;
   }
 
-  .compact-row__check,
-  .card-select input {
-    width: 20px;
-    height: 20px;
-  }
-
-  .card-select {
-    width: 40px;
-    height: 40px;
-  }
 }
 
 /* ── 압축 목록 / 군집 보기 ──────────────────────────────────── */
@@ -1680,12 +1851,6 @@ html[data-intro-reveal='1'] [data-main-content] {
   color: #5f6368;
 }
 
-.compact-row__check {
-  margin-top: 3px;
-  width: 16px;
-  height: 16px;
-  accent-color: #1a73e8;
-}
 
 .compact-row__title {
   display: block;
@@ -3079,6 +3244,13 @@ html[data-intro-reveal='1'] [data-main-content] {
   .command-status-line.is-collecting,
   .refresh-spinner {
     animation: none !important;
+  }
+
+  .select-checkbox,
+  .select-checkbox:checked,
+  .select-checkbox:checked::after {
+    animation: none !important;
+    transition: none !important;
   }
 
   /* 막대·게이지는 최종 길이로 즉시 그린다 */

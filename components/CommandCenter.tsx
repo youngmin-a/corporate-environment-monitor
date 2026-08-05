@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { collectionFreshness, FRESHNESS_LABELS } from '@/lib/dashboard';
 
 /** ISO 시각 → "8/4 08:00" */
@@ -48,6 +49,7 @@ export function CommandCenter({
   onRefresh,
 }: Props) {
   const freshness = collectionFreshness(lastSuccessAt);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   return (
     <header className="app-header animate-header-in mt-4 rounded-3xl p-5 md:p-8">
@@ -69,30 +71,42 @@ export function CommandCenter({
           </p>
         </div>
 
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#5F6368]">
-            <span className={`freshness-pill freshness-pill--${freshness}`}>
-              <span aria-hidden="true" className="freshness-dot" />
-              {FRESHNESS_LABELS[freshness]}
-            </span>
-            <span>
-              {lastSuccessAt
-                ? `마지막 수집: ${formatDateTime(lastSuccessAt)}`
-                : '아직 수집한 기사가 없습니다'}
-            </span>
-          </div>
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 md:w-auto md:justify-end md:gap-6">
+          {/* 기관 식별용 브랜드 로고. 장식 효과 없이 원본 비율만 유지한다 */}
+          {!logoFailed && (
+            <img
+              src="/재정경제부.svg"
+              alt="재정경제부"
+              onError={() => setLogoFailed(true)}
+              className="header-agency-logo h-7 w-auto shrink-0 object-contain sm:h-8 md:h-9"
+            />
+          )}
 
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="refresh-button rounded-full px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2"
-          >
-            <span className={isRefreshing ? 'refresh-spinner' : undefined} aria-hidden="true">
-              ⟳
-            </span>{' '}
-            {isRefreshing ? '수집 중…' : '새로고침'}
-          </button>
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#5F6368]">
+              <span className={`freshness-pill freshness-pill--${freshness}`}>
+                <span aria-hidden="true" className="freshness-dot" />
+                {FRESHNESS_LABELS[freshness]}
+              </span>
+              <span>
+                {lastSuccessAt
+                  ? `마지막 수집: ${formatDateTime(lastSuccessAt)}`
+                  : '아직 수집한 기사가 없습니다'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="refresh-button rounded-full px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2"
+            >
+              <span className={isRefreshing ? 'refresh-spinner' : undefined} aria-hidden="true">
+                ⟳
+              </span>{' '}
+              {isRefreshing ? '수집 중…' : '새로고침'}
+            </button>
+          </div>
         </div>
       </div>
 

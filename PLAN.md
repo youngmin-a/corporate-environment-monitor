@@ -267,3 +267,38 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 - Escape 키의 실제 브라우저 동작은 이번 세션의 자동화 도구(CDP) 제약으로 직접
   검증하지 못했다 — 같은 `<dialog>` 패턴을 쓰는 기존 `FilterDrawer`도 동일한
   제약을 보여 환경 문제로 판단했다.
+
+## 브랜딩·체크박스·전체 기사 탐색 (2026-08-05, 사용자 요청)
+
+### 작업 순서
+
+1. `public/재정경제부.svg` 존재·대소문자 확인 → `CommandCenter.tsx`에 배치.
+2. `app/globals.css`의 `.select-checkbox`·`.card-select`·`.compact-row__check-wrap`
+   추가/수정, `ArticleCard.tsx` 두 variant에 적용.
+3. `lib/articles.ts`에 `getArticleGroupsPage()` 추가 (서버 페이지네이션).
+4. `app/articles/{page,error}.tsx` + `components/{ArchiveControls,
+   ArchiveListSection,ArchiveListSkeleton,ArticlesArchive}.tsx` 구현.
+5. `lib/dashboard.ts` Metric에 `href` 추가, `MetricCards.tsx`에서 링크 렌더링.
+6. AI 분석관 검색 범위가 이미 DB 전체를 보고 있는지 확인 — 코드 검토 + 31번째
+   이후 기사로 실제 질의 테스트.
+7. `npm run typecheck` → `lint` → `build` → `audit:quality`, 브라우저로
+   360/768/1440px·체크박스·pagination·AI 검색 확인.
+
+### 데이터 변경
+
+- 신규 컬럼·마이그레이션 없음. `getArticleGroupsPage()`는 기존 `articles`
+  테이블을 `range()`로 나눠 읽을 뿐이다.
+
+### 완료하지 못한 것 / 추가 확인 필요
+
+- `/articles` 조회 실패는 Next.js 표준 `error.tsx`로 처리했다 — count 쿼리와
+  목록 쿼리를 한 번에 묶어 요청하므로 "count만 실패하고 목록은 성공"하는
+  경우는 설계상 발생하지 않는다(원 요구사항의 그 세부 시나리오를 별도
+  코드로 방어하지는 않았다).
+- 페이지네이션 번호 버튼은 최대 7개(처음·끝·현재±2, 그 사이는 …)로 압축했다.
+  현재 데이터 규모(6페이지 안팎)에서는 압축이 실제로 일어나지 않아 그 UI
+  경로는 육안 확인만 했고 페이지 수가 훨씬 많아지는 경우까지 테스트하지
+  못했다.
+- Vercel 배포 후 프로덕션 환경에서의 실제 asset 경로·smoke test는 push 이후에만
+  가능하다 — 로컬 프로덕션 빌드(`next build`)와 개발 서버 확인까지만 이 단계에서
+  마쳤다.

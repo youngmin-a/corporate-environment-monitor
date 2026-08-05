@@ -475,3 +475,57 @@ Supabase·OpenAI를 부르는 `lib/agentSearch.ts`·`lib/agentQuery.ts`·`lib/ag
 패널 진입/메시지 등장/출처 카드/추천 질문 stagger는 `prefers-reduced-motion`에서
 모두 짧은 opacity 전환으로 대체한다. 기능(전송·스트리밍·인용 클릭·필터 chip)은
 그대로 동작한다.
+
+## 7. 브랜딩·체크박스·전체 기사 탐색 (2026-08-05)
+
+### 7-1. 로고
+
+`components/CommandCenter.tsx`가 `public/재정경제부.svg`를 일반 `<img>`로 연다
+(Next `<Image>`는 SVG 최적화에 `dangerouslyAllowSVG` 설정이 따로 필요해, 정적
+공개 자산에는 맞지 않는다고 판단했다). `onError`로 실패를 감지해 실패 시
+아무것도 그리지 않는다(깨진 이미지 아이콘 금지). 크기는 `.header-agency-logo`
+(globals.css)에서 `max-width`만 반응형으로 제한하고 `height`는 Tailwind
+유틸리티로 조절해 원본 비율(약 3.16:1)을 그대로 지킨다.
+
+### 7-2. 체크박스
+
+`app/globals.css`의 `.select-checkbox` 클래스가 `appearance: none` 위에 테두리·
+그림자·`:checked`의 그라디언트 배경과 `::after` 체크 마크를 직접 그린다. 카드
+보기는 기존 `.card-select`(이미지 위 반투명 wrapper, 40×40으로 확대)를, 압축
+목록은 새 `.compact-row__check-wrap`(40×40, 음수 margin으로 텍스트 정렬은
+유지)을 클릭 영역으로 쓴다. 두 곳 모두 `<label onClick={stopCardOpen}>`으로
+감싸 체크박스 클릭이 카드 열기로 번지지 않게 하면서 label-input 연결과
+접근 가능한 이름(`aria-label`)을 함께 준다.
+
+### 7-3. 전체 기사 화면
+
+```
+app/articles/page.tsx        (서버, force-dynamic) — searchParams 파싱 + 총 건수 조회
+  └─ ArchiveControls          (클라이언트) — 산업/정렬 select, AI 분석관 진입점
+  └─ <Suspense fallback=ArchiveListSkeleton>
+       └─ ArchiveListSection  (서버) — getArticleGroupsPage() 호출
+            └─ ArticlesArchive (클라이언트) — 카드 grid·pagination·상세 dialog
+app/articles/error.tsx        — 조회 실패 시 안내 + 재시도(reset) + 대시보드 복귀
+```
+
+`lib/articles.ts`의 `getArticleGroupsPage({ page, industry, sort })`가 Supabase
+`range()` + `count: 'exact'`로 페이지 단위(기본 30건, `MAX_VISIBLE_ARTICLES`
+재사용)만 가져온다 — 152건을 한 번에 클라이언트로 내려보내지 않는다. `page`·
+`industry`·`sort`는 URL 쿼리에 실려 있어 브라우저 뒤로가기·새로고침이 그대로
+동작한다. 페이지 전환은 Next.js의 `<Link>` 네비게이션 + 서버 컴포넌트 스트리밍을
+그대로 쓰므로, 헤더(`ArchiveControls`)는 다시 그려지지 않고 목록 영역
+(`Suspense` 경계)만 로딩 스켈레톤으로 바뀐다 — 별도의 클라이언트 fetch 취소
+로직 없이 Next가 이전 요청을 대체한다.
+
+카드·상세 dialog·개인 상태(읽음·저장·브리핑)는 대시보드와 동일한
+`ArticleCard`/`ArticleDetailDialog`/`lib/personalState.ts`를 그대로 재사용한다
+— 로직을 복제하지 않았다.
+
+### 7-4. AI 분석관과의 관계
+
+`lib/agentSearch.ts`는 이번 작업 이전부터 `getAllArticleGroupsForSearch()`로
+DB 전체(관련성 60점 이상, 최대 1000건)를 60초 캐시로 조회해 검색해 왔다 —
+화면에 내려온 배열을 필터링하는 구조가 아니었다. 이번에는 `/articles`
+화면에도 `AgentEntryButton`/`AgentPanel`을 그대로 얹어 진입 경로만 넓혔고,
+검색 로직은 손대지 않았다. `ArchiveControls`가 선택된 산업을
+`currentIndustryScope`로 넘겨 분석관의 기본 검색 범위에 반영한다.

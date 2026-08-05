@@ -201,6 +201,84 @@ export async function getAllArticleGroupsForSearch(limit = 1000): Promise<Articl
   }));
 }
 
+export type ArticleArchiveSort = 'latest' | 'relevance';
+
+export type ArticleArchivePage = {
+  groups: ArticleGroup[];
+  /** 현재 페이지 조건(산업 필터 포함)에 해당하는 기사 수. 전체 저장 건수와는 다르다 */
+  filteredCount: number;
+  page: number;
+  pageSize: number;
+};
+
+/**
+ * "전체 기사" 탐색 화면용 서버 페이지네이션 조회 (일회성 확장 요구사항).
+ *
+ * `getRecentArticleGroups()`와 달리 최근 7일 제한이 없고, 상한도 화면 기본
+ * 목록(MAX_VISIBLE_ARTICLES)이 아니라 페이지 단위로 넘긴다. 152건 전체를 한 번에
+ * 클라이언트로 내려보내지 않고 Supabase `range()`로 필요한 페이지만 가져온다.
+ */
+export async function getArticleGroupsPage({
+  page,
+  industry,
+  sort,
+  pageSize = MAX_VISIBLE_ARTICLES,
+}: {
+  page: number;
+  industry: Industry | null;
+  sort: ArticleArchiveSort;
+  pageSize?: number;
+}): Promise<ArticleArchivePage> {
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('articles')
+    .select('*', { count: 'exact' })
+    .is('group_id', null)
+    .gte('relevance_score', MIN_RELEVANCE_SCORE);
+
+  if (industry) query = query.contains('industries', [industry]);
+
+  query =
+    sort === 'latest'
+      ? query.order('published_at', { ascending: false }).order('relevance_score', { ascending: false })
+      : query.order('relevance_score', { ascending: false }).order('published_at', { ascending: false });
+
+  const { data, error, count } = await query.range(from, to);
+  if (error) throw error;
+
+  const filteredCount = count ?? 0;
+  const representatives = (data ?? []).map(toArticle);
+
+  if (representatives.length === 0) {
+    return { groups: [], filteredCount, page, pageSize };
+  }
+
+  const { data: relatedData, error: relatedError } = await supabase
+    .from('articles')
+    .select('*')
+    .in(
+      'group_id',
+      representatives.map((item) => item.url),
+    )
+    .order('published_at', { ascending: false });
+
+  if (relatedError) throw relatedError;
+
+  const related = (relatedData ?? []).map(toArticle);
+
+  return {
+    groups: representatives.map((representative) => ({
+      representative,
+      related: related.filter((row) => row.groupId === representative.url),
+    })),
+    filteredCount,
+    page,
+    pageSize,
+  };
+}
+
 /**
  * 대시보드 상단 지표용 집계 (DESIGN.md 3-2).
  *
