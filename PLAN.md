@@ -302,3 +302,51 @@ PRD 5-3에 정의된 고정형 산업 필터. 15~21번(3개월 소급, Cron, 예
 - Vercel 배포 후 프로덕션 환경에서의 실제 asset 경로·smoke test는 push 이후에만
   가능하다 — 로컬 프로덕션 빌드(`next build`)와 개발 서버 확인까지만 이 단계에서
   마쳤다.
+
+## 기사 카드 체크박스 재디자인 (2026-08-05, 사용자 요청)
+
+### 작업 순서
+
+1. 현재 체크박스 구조 확인 — `components/ArticleCard.tsx`의 card/compact 두
+   variant, `app/globals.css`의 `.card-select`·`.select-checkbox`. native
+   `<input type="checkbox">`를 이미 쓰고 있고 선택 상태는 `Dashboard.tsx`·
+   `ArticlesArchive.tsx`의 `selected: string[]` state가 관리한다.
+2. 이벤트 충돌 점검 — 카드 `<article onClick>`이 상세를 열고, 체크박스를 감싼
+   `<label onClick={stopCardOpen}>`이 `stopPropagation()`으로 막는다. 구조는
+   그대로 두고 스타일만 바꾼다.
+3. 시각 디자인 개선 — `.card-select`의 어두운 배경 제거, `.select-checkbox`를
+   반투명 floating control로 재작성, hover·checked·focus-visible·disabled 정리.
+4. 접근성 확인 — label-input 연결, `aria-label`, focus-visible.
+5. 산업 이미지별 대비 테스트 — 9개 이미지 전부에 미선택·선택을 얹어 확인.
+6. 반응형 테스트 — 360/768/1024/1440px.
+7. `npm run typecheck` → `lint` → `build`.
+
+### 데이터 변경
+
+- 없음. CSS와 클래스명만 바뀌었고 선택 로직·상태 관리는 손대지 않았다.
+
+### 작업 중 발견해서 함께 고친 것
+
+- `backdrop-filter: blur(6px)` 바로 뒤에 `-webkit-backdrop-filter`를 같이 적으니
+  Lightning CSS(Tailwind v4)가 두 선언을 합치면서 **둘 다 빌드 결과에서 사라졌다.**
+  이 저장소의 다른 `backdrop-filter` 사용처처럼 접두사 없는 표준 속성만 남겨 해결했다.
+- 테두리를 1.5px로 두면 dpr 1.25 화면에서 1 device px로 스냅돼 너무 얇았다 →
+  1.75px(= 2 device px)로 조정.
+- 클릭 영역을 40px로 키우면서 체크박스가 카드 모서리에서 21px까지 밀려나 있었다 →
+  wrapper 오프셋을 4px(모바일 2px)로 줄여 보이는 여백을 13px로 맞췄다.
+
+### 완료하지 못한 것 / 추가 확인 필요
+
+- **키보드 Space 토글을 직접 실행해 확인하지 못했다.** 자동화 도구의 키 입력이
+  빈 key(`""`)로 전달돼 브라우저가 스페이스로 인식하지 않았다. 대신 ① native
+  `<input type="checkbox">`라는 점, ② 체크박스에 도달한 keydown의
+  `defaultPrevented`가 false인 점, ③ 앱의 유일한 keydown 핸들러
+  (`IntroOverlay`)가 인트로 표시 중 Tab에만 반응하고 그 외 키는 즉시 return하는
+  점, ④ focus-visible이 실제로 동작하는 점까지 확인했다.
+- **`:hover` 실제 포인터 상태도 자동화로 안정적으로 재현하지 못했다.** 대신
+  빌드된 CSS에서 `.select-checkbox:hover` 규칙을 그대로 꺼내 적용한 모습을
+  렌더링해 시각적으로 확인했다.
+- **"관련 기사 N건" 버튼과의 충돌은 확인하지 못했다.** 현재 수집된 데이터에
+  중복으로 묶인 기사가 없어 그 버튼이 화면에 존재하지 않았다.
+- indeterminate 상태는 현재 기능에 없어 새로 만들지 않았다. disabled 상태도
+  실제로 쓰는 곳은 없지만 스타일만 정의해 뒀다.
